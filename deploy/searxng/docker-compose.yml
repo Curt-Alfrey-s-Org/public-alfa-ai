@@ -1,0 +1,25 @@
+# SearXNG for ALFa agent web_search. Shares Docker network alfa-searxng with
+# brain alfa-ai-api (see deploy/docker-compose.yml). Official Compose external
+# network pattern: https://docs.docker.com/compose/how-tos/networking/
+#
+# Pre-create once (scripts/start.sh / alfa_ensure_searxng_network also do this):
+#   sudo docker network create alfa-searxng
+
+services:
+  searxng:
+    image: docker.io/searxng/searxng:2026.10.2-19ffbcd30
+    container_name: alfa-searxng
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8888:8080"
+    volumes:
+      - ./settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      SEARXNG_BASE_URL: http://hub/
+    networks:
+      - alfa-searxng
+
+networks:
+  alfa-searxng:
+    external: true
+    name: alfa-searxng

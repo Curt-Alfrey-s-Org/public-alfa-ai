@@ -1,0 +1,68 @@
+# Excerpts removed from live alfa-ai deploy files on 2026-06-30
+
+=== From stacksapps.yml (the bot stack definitions) ===
+
+  - name: rankings-bot
+    path: ../rankings-bot
+    compose:
+      - production/docker-compose.prod.yml
+    env_file: ../rankings-bot/.env
+    critical: true
+    stop_projects:
+      - rankings-bot
+      - production
+    notes: |
+      Canonical production compose (see rankings-bot/production/).
+      API only; public site also needs probilliards-nginx + cf-probilliards (stacks below).
+      After the brain flip, .env must have ALFA_AI_API_URL=http://hub.
+      See docs/history/BRAIN_MIGRATION_105_TO_111.md for bot URL migration notes.
+
+  - name: probilliards-nginx
+    path: ../rankings-bot/nginx-config
+    compose:
+      - docker-compose.nginx.yml
+    critical: true
+    stop_projects:
+      - nginx-config
+    notes: |
+      Public origin nginx for probilliardssoftware.com on tunnel_network (:8088 on host).
+      Cloudflare tunnel cf-probilliards routes to http://probilliards-nginx:80.
+      deploy.sh runs start-rankings-public-ingress-105.sh after this stack is up.
+
+=== From deploy.sh (usage examples that singled out the bot) ===
+
+#   bash deploy/cluster-members/apps/deploy.sh --only rankings-bot,probilliards-nginx
+#   bash deploy/cluster-members/apps/deploy.sh --skip rankings-bot
+
+=== From deploy.sh (the entire post-deploy special case for rankings public ingress) ===
+
+# Rankings public ingress: nginx stack + Cloudflare tunnel (not compose-managed).
+if [[ "$MODE" == "up" ]]; then
+  RANKINGS_DEPLOYED=0
+  if [[ -z "$ONLY" ]] || in_csv "rankings-bot" "$ONLY" || in_csv "probilliards-nginx" "$ONLY"; then
+    if [[ -z "$SKIP" ]] || { ! in_csv "rankings-bot" "$SKIP" && ! in_csv "probilliards-nginx" "$SKIP"; }; then
+      RANKINGS_DEPLOYED=1
+    fi
+  fi
+  if [[ "$RANKINGS_DEPLOYED" -eq 1 ]]; then
+    TUNNEL_SCRIPT="$REPO_ROOT/deploy/cluster-members/_common/start-rankings-public-ingress-105.sh"
+    VERIFY_SCRIPT="$REPO_ROOT/deploy/cluster-members/_common/verify-rankings-public-ingress-105.sh"
+    if [[ -f "$TUNNEL_SCRIPT" ]]; then
+      echo "== Rankings public ingress: Cloudflare tunnel =="
+      if bash "$TUNNEL_SCRIPT" 2>&1 | sed 's/^/    /'; then
+        echo ""
+      else
+        echo "  FAIL: cf-probilliards did not register (see above)" >&2
+        exit 1
+      fi
+    fi
+    if [[ -f "$VERIFY_SCRIPT" ]]; then
+      echo "== Rankings public ingress: verify =="
+      if ! bash "$VERIFY_SCRIPT"; then
+        echo "RESULT: FAIL — rankings public ingress verify failed." >&2
+        exit 1
+      fi
+      echo ""
+    fi
+  fi
+fi

@@ -1,0 +1,15 @@
+# Win10 NAT path -- copy to C:\Users\Corey\.wslconfig (repo owner on gaming-a)
+# Mirrored mode is NOT supported on Win10 (build < 22621).
+# See docs/WINDOWS_WSL_DOCKER_ENGINE.md
+#
+# memory=12GB: Dockge + optional inference rpc-server without taking half of 64 GB host RAM.
+# After edit: wsl --shutdown, then restart Dockge stacks (or gaming-resume-pool-shard.ps1).
+
+[wsl2]
+memory=12GB
+swap=0
+localhostForwarding=true
+vmIdleTimeout=-1
+
+[general]
+instanceIdleTimeout=-1

@@ -1,0 +1,10 @@
+# Stack symlinks for Dockge visibility on VM106 (ProBilliards).
+
+version: 1
+host: orchestrator
+
+stack_links:
+  - name: rankings-bot
+    path: /home/operator/rankings-bot
+  - name: uspbf
+    path: /home/operator/USPBF

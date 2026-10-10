@@ -1,0 +1,51 @@
+# ai-148: eno1 mgmt inference (bond0) + USB data plane .147 (nic_usb, no DHCP on USB).
+# USB NIC name varies (enx*); edit match.name if ifrename differs after reboot.
+#
+# .147 and inference share orchestrator/24 (same L2). A second NIC on the same subnet MUST use
+# source policy routing or the kernel adds a competing on-link /24 route and the host suffers
+# ARP flux + asymmetric returns, intermittently breaking ALL LAN egress.
+# Fix (official netplan source-routing example + Linux ARP sysctls; see docs/PORT_ASSIGNMENTS.md):
+#   - data IP is /32 (no competing main-table /24 route; unbound egress always bond0 default)
+#   - routing-policy: from .147 -> table 101 (on-link /24 only, no gateway: server-only data plane)
+#   - ARP sysctls applied by the setup script (arp_ignore=1, arp_announce=2)
+# Ref: https://netplan.readthedocs.io/en/stable/examples/ (source routing)
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eno1:
+      dhcp4: no
+      dhcp6: no
+      match:
+        macaddress: b4:2e:99:38:2f:c9
+      set-name: eno1
+    nic_usb:
+      dhcp4: no
+      dhcp6: no
+      match:
+        name: enx96ae5e1c7cd2
+      addresses:
+        - orchestrator/32
+      routes:
+        - to: orchestrator/24
+          scope: link
+          table: 101
+      routing-policy:
+        - from: orchestrator
+          table: 101
+  bonds:
+    bond0:
+      interfaces:
+        - eno1
+      parameters:
+        mode: active-backup
+        mii-monitor-interval: 100
+      dhcp4: no
+      addresses:
+        - orchestrator/24
+      routes:
+        - to: default
+          via: orchestrator
+      nameservers:
+        addresses:
+          - orchestrator

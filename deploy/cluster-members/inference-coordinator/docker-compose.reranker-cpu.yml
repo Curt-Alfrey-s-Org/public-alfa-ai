@@ -1,0 +1,62 @@
+# inference -- CPU llama-server rerank sidecar (:8360). Moved off VM100 1660 Super
+# and off the legacy inference GPU (retired docker-compose.reranker-3050.yml) so
+# both inference GPUs (3060/5060) stay reserved for the inference rpc-server shards.
+# See .cursor/plans/RAG_248_VM100_SHARD.md.
+#
+# Usage (on inference):
+#   bash deploy/cluster-members/inference-coordinator/deploy-rag-cpu.sh
+#
+# RETIRED 2026-07-18 (production RAG on rag). Rollback only — LiteLLM on hub: RERANK_BASE_URL=http://orchestrator
+
+services:
+  alfa-ai-reranker:
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: never
+    container_name: alfa-ai-reranker
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${RERANK_PORT:-8360}"
+      - --model
+      - "/models/${RERANK_MODEL_FILE:?RERANK_MODEL_FILE must be set}"
+      - --alias
+      - "${RERANK_MODEL_ALIAS:-qwen3-reranker-0.6b}"
+      - --ctx-size
+      - "${RERANK_CTX_SIZE:-1024}"
+      - --parallel
+      - "${RERANK_PARALLEL:-2}"
+      # CPU only -- no --n-gpu-layers flag (defaults to 0). i7-9700K has AVX2.
+      - --embedding
+      # Official llama.cpp server flag to enable /rerank -- disabled by
+      # default (llama-server --help): https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md
+      - --rerank
+    environment:
+      # alfa-llamacpp-rpc:cuda128's llama-server is dynamically linked against
+      # libcuda.so.1 -- it will not even start without the NVIDIA driver libs
+      # mounted (see device reservation below). CUDA_VISIBLE_DEVICES=-1 makes
+      # the CUDA runtime report 0 usable devices once loaded, so llama.cpp's
+      # CUDA backend falls back to CPU (no --n-gpu-layers => 0 offloaded
+      # layers either way). This does not contend with the rpc-server shards:
+      # NVIDIA driver-library visibility is not an exclusive reservation --
+      # multiple containers may see the same GPU node; this container never
+      # issues compute against it.
+      - CUDA_VISIBLE_DEVICES=-1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    volumes:
+      - ${RERANK_MODELS_DIR:-/mnt/cluster/models/downloads/reranker}:/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${RERANK_PORT:-8360}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s

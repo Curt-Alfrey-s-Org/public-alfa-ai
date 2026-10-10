@@ -1,0 +1,24 @@
+# Verdaccio npm caching proxy for LAN-first frontend builds.
+# Storage lives on hub HDD: /mnt/HDDs/Alfa-AI/npm/storage
+#
+# Deploy on hub (image user 10001:65533 -- https://verdaccio.org/docs/docker ):
+#   sudo mkdir -p /mnt/HDDs/Alfa-AI/npm/storage && sudo chown -R 10001:65533 /mnt/HDDs/Alfa-AI/npm/storage
+#   chmod a+r ./config.yaml
+#   docker compose -f docker-compose.verdaccio.yml up -d
+#
+# Builders use NPM_REGISTRY=http://hub (default in Dockerfiles).
+
+services:
+  verdaccio:
+    image: verdaccio/verdaccio:5
+    container_name: alfa-verdaccio
+    restart: unless-stopped
+    ports:
+      # LAN-facing npm proxy (hub brain `hub`)
+      - "4873:4873"
+    environment:
+      - VERDACCIO_PORT=4873
+    volumes:
+      - ${VERDACCIO_STORAGE:-/mnt/HDDs/Alfa-AI/npm/storage}:/verdaccio/storage
+      # Private @alfa-ai scope + npmjs uplink (see config.yaml).
+      - ./config.yaml:/verdaccio/conf/config.yaml:ro

@@ -1,0 +1,54 @@
+# G-rev27 preflight: RTX 3060 (12 GB) only before dual-GPU deploy.
+#
+# Official single-GPU: https://github.com/ggml-org/llama.cpp/blob/master/docs/multi-gpu.md Recipe 3
+# Use GPU UUID (device_ids index order on this host does not match nvidia-smi index).
+# Omit --n-gpu-layers and --ctx-size so --fit sizes GPU layers + CPU spill.
+
+services:
+  llamacpp-server:
+    container_name: llamacpp-server-148-preflight-gpu1
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${PREFLIGHT_PORT:-31359}"
+      - --model
+      - "/models/${MODEL_FILE:-Qwen3.6-27B-UD-Q4_K_XL.gguf}"
+      - --alias
+      - "${MODEL_ALIAS:-qwen3.6-27b-preflight}"
+      - --split-mode
+      - none
+      - --cache-type-k
+      - "${CACHE_TYPE_K:-q8_0}"
+      - --cache-type-v
+      - "${CACHE_TYPE_V:-q8_0}"
+      - --flash-attn
+      - "on"
+      - --fit
+      - on
+      - --fit-target
+      - "${FIT_TARGET_GPU1:-1536}"
+      - --fit-ctx
+      - "${FIT_CTX:-2048}"
+      - --no-warmup
+      - --jinja
+      - --chat-template
+      - "${CHAT_TEMPLATE:-chatml}"
+      - --parallel
+      - "${PARALLEL:-1}"
+      - --threads
+      - "${THREADS:-12}"
+      - --threads-http
+      - "${THREADS_HTTP:-8}"
+      - --slot-save-path
+      - "/slot-cache"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=${GPU3060_UUID:-GPU-4a1dad62-4955-7c2f-90b0-219bdd606cb7}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${GPU3060_UUID:-GPU-4a1dad62-4955-7c2f-90b0-219bdd606cb7}"]
+              capabilities: [gpu]

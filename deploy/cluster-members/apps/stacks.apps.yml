@@ -1,0 +1,143 @@
+# Declarative stack manifest for apps (apps host, Ubuntu).
+#
+# April 2026 architecture: apps runs the bot/website fleet + shared
+# Postgres/Redis for bots. Petals/Hivemind retired.
+# The brain's own Postgres/Redis are the protected stacks on hub (stackshub.yml);
+# the apps postgres/redis below are NOT the brain DB, so they are non-critical here.
+# See docs/DOCKGE_105_OPERATOR.md.
+#
+# The deploy/cluster-members/apps/deploy.sh runner iterates every stack in
+# `stacks:` and for each one:
+#   1. Verifies required files (env + compose) exist.
+#   2. Runs `docker compose down` against any legacy project names listed in
+#      `stop_projects:` (so leftover brain services from the apps-era don't
+#      collide with the new apps-only layout).
+#   3. Symlinks /opt/stacks/<name> -> <repo>/<path> (Dockge sees a flat folder
+#      list and derives the project name from the symlink).
+#   4. cd /opt/stacks/<name> && docker compose -f <files...> --env-file <env> up -d
+#
+# If a stack is `critical: true` and its compose file is missing, deploy.sh
+# exits non-zero. Non-critical stacks are skipped with a warning (covers
+# bot .env files that operators haven't populated yet).
+#
+# Paths are resolved relative to the repo root (/home/operator/alfa-ai).
+
+version: 1
+repo_root: /home/operator/alfa-ai
+stacks_dir: /opt/stacks   # Dockge-visible symlink tree
+
+# Legacy project names to stop before the new layout comes up.
+# The old apps-as-brain era used the single project `alfa-ai` with the full
+# docker-compose.yml bringing up api/litellm/nginx/postgres/redis/gateway. In
+# the new layout postgres/redis/gateway each get their own project.
+# postgres and redis are protected shared infra — excluded from cluster stop.
+global_stop_projects:
+  - alfa-ai            # old monolithic brain project
+  - alfa-ai-frontend   # legacy split-frontend project
+  - deploy             # pre-Dockge monolith
+
+stacks:
+
+  - name: postgres
+    path: deploy
+    compose:
+      - docker-compose.postgres.yml
+    env_file: deploy/.env.apps
+    # Not the brain DB (that is alfa-postgres on hub, see stackshub.yml), so a
+    # failure here must not fail the whole apps deploy.
+    critical: false
+    # Postgres data is a named volume persisted on apps's local disk
+    # (not NFS) for latency + pg_stat reasons.
+    # Protected: cluster stop/start never downs it.
+    notes: |
+      Provides: apps-local alfa-postgres (127.0.0.1:5432) for bots on apps whose
+      live DATABASE_URL elects to use it (see docs/DOT105_SHARED_DATA_PLANE.md).
+      NOT the brain DB: the hub brain uses its own alfa-postgres stack on hub
+      via DATABASE_URL (the brain does not read ALFA_DATABASE_URL).
+      Protected dedicated stack — never stopped by cluster lifecycle.
+
+  - name: redis
+    path: deploy
+    compose:
+      - docker-compose.redis.yml
+    env_file: deploy/.env.apps
+    # Not the brain's Redis (that is alfa-redis on hub) — non-critical here.
+    critical: false
+    # Protected dedicated stack — cluster stop/start never downs it.
+    notes: |
+      Provides: apps-local alfa-redis (127.0.0.1:6379) for bot caches on apps.
+      NOT the brain queue/cache: the hub brain uses alfa-redis on hub (REDIS_URL).
+      Protected infrastructure (see DOT105_SHARED_DATA_PLANE.md).
+
+  # RETIRED Jul 2026 — edge + cluster hub moved to inference (deploy.sh skips this stack).
+  #  admin: http://<inference--ip>:8420/alfa-ai/login via start-edge-api.sh on inference.
+  - name: alfa-ai-edge-api
+    path: deploy
+    enabled: false
+    compose:
+      - docker-compose.edge-api.yml
+    critical: false
+    notes: |
+      Retired on apps — use inference hub: deploy/cluster-members/_common/start-edge-api.sh.
+      apps site nginx may proxy to http://orchestrator or brain hub:8420 directly.
+
+  # Removed 2026-09-26 (moved off apps; see docs/REPO_HOST_MAPPING.md):
+  #   atems -> atems, market-pie5-bot -> market, monitoring -> monitor, uspbf -> probilliards.
+  # Do not re-add those: deploy.sh without --only would start duplicates on apps.
+  # credit-check-bot and rv-auto-finder stay: their containers are still up on apps.
+
+  - name: contracts-bot
+    path: ../contracts-bot
+    compose:
+      - docker-compose.yml
+    env_file: ../contracts-bot/.env
+    critical: false
+    stop_projects:
+      - contracts-bot
+
+  - name: credit-check-bot
+    path: ../credit-check-bot
+    compose:
+      - docker-compose.yml
+    env_file: ../credit-check-bot/.env
+    critical: false
+    stop_projects:
+      - credit-check-bot
+
+  - name: rv-auto-finder
+    path: ../rv-auto-finder
+    compose:
+      - docker-compose.yml
+    env_file: ../rv-auto-finder/.env
+    critical: false
+    stop_projects:
+      - rv-auto-finder
+
+  - name: example-site-perch
+    path: ../example-site-perch
+    compose:
+      - docker-compose.yml
+    env_file: ../example-site-perch/.env
+    critical: false
+    stop_projects:
+      - example-site-perch
+
+  - name: alfaqd-website
+    path: ../alfaqd-website
+    compose:
+      - docker-compose.yml
+    env_file: ../alfaqd-website/.env
+    critical: false
+    stop_projects:
+      - alfaqd-website
+
+  - name: dockge-agent
+    path: deploy/cluster-members/apps
+    compose:
+      - docker-compose.dockge-agent.yml
+    env_file: deploy/cluster-members/apps/.env.dockge
+    critical: false
+    notes: |
+      Dockge agent for apps, registered on the primary Dockge at
+      http://orchestrator (Settings -> Remote agents ->
+      http://apps).

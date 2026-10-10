@@ -1,0 +1,336 @@
+name: alfa-ai
+
+services:
+  # Immutable app image: set BUILD_HASH before build (scripts/docker_build_hash.sh or brain_redeploy_api.sh).
+  # Default tag/local stamp is "local" when BUILD_HASH unset; build-arg and image tag must match.
+  alfa-ai-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+      args:
+        BUILD_HASH: ${BUILD_HASH:-local}
+    image: alfa-ai-app:${BUILD_HASH:-local}
+    pull_policy: build
+    container_name: alfa-ai-api
+    # Brain stack is CPU-only; pin runc so hosts with broken/missing nvidia default-runtime still start.
+    runtime: runc
+    working_dir: /app
+    # Pass-through from deploy/.env into the container (avoids empty ${VAR:-} overriding on some hosts).
+    env_file:
+      - .env
+    volumes:
+      - alfa-ai-workspace:/workspace
+      # Hub model tree (hub NFS). Set ALFA_AI_MODELS_HOST_DIR on the host if not /mnt/cluster/models.
+      - ${ALFA_AI_MODELS_HOST_DIR:-/mnt/cluster/models}:/mnt/cluster/models:ro
+      # Agent audit hub logs (Admin Missions tab). Host path on hub; RO inside API.
+      - ${ALFA_AI_AUDIT_LOG_DIR:-/mnt/HDDs/Alfa-AI/agent-audit-logs}:/var/alfa-ai/agent-audit-logs:ro
+      # Host-actions SSH key (operator-provisioned; see docs/ADMIN_AI_HOST_ACTIONS.md). Optional until enabled.
+      - ${ALFA_AI_HOST_ACTIONS_SECRETS_DIR:-./secrets/host-actions}:/app/secrets/host-actions:ro
+      - ${ALFA_AI_HOME_ASSISTANT_SECRETS_DIR:-./secrets/home-assistant}:/app/secrets/home-assistant:ro
+      # Live inference membership (active.env) + shard catalogs for Admin Health.
+      - ./llamacpp-rpc:/app/deploy/llamacpp-rpc:ro
+    environment:
+      - ALFA_AI_PROVIDER=${ALFA_AI_PROVIDER:-litellm}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-frontier-code}
+      - CHAT_MODELS=${CHAT_MODELS:-}
+      - ALFA_INFERENCE_MODE=${ALFA_INFERENCE_MODE:-default}
+      - ALFA_inference_FAMILY=${ALFA_inference_FAMILY:-qwen38}
+      - ALFA_inference_SHARDS_FILE=${ALFA_inference_SHARDS_FILE:-}
+      - ALFA_inference_SHARD_ENDPOINTS=${ALFA_inference_SHARD_ENDPOINTS:-}
+      - ALFA_QWEN_CHAT_MODE=${ALFA_QWEN_CHAT_MODE:-}
+      - QWEN_THINKING_BUDGET=${QWEN_THINKING_BUDGET:-8192}
+      - ALFA_AI_WORKSPACE_ROOT=/workspace
+      - ALFA_AI_MODELS_DIR=${ALFA_AI_MODELS_DIR:-/mnt/cluster/models}
+      - ALFA_AI_AUDIT_LOG_DIR=/var/alfa-ai/agent-audit-logs
+      - DATABASE_URL=${DATABASE_URL:-postgresql://alfaai@alfa-postgres:5432/alfaai}
+      - REDIS_URL=${REDIS_URL:-redis://:${REDIS_PASSWORD:?required - set REDIS_PASSWORD in deploy/.env (audit REDIS-002)}@alfa-redis:6379/0}
+      - LITELLM_BASE_URL=${LITELLM_BASE_URL:-http://alfa-ai-litellm:4000}
+      - LITELLM_API_KEY=${LITELLM_MASTER_KEY:?set LITELLM_MASTER_KEY in deploy/.env (audit LITELLM-007)}
+      # RETIRED 35B MoE -- leave unset unless revive (switch-pool-35b.sh).
+      - LLAMACPP_35B_URL=${LLAMACPP_35B_URL:-}
+      # Brain containers must use host gateway, not container localhost (KD-19 / audit D-009).
+      - LLAMACPP_CODE27_URL=${LLAMACPP_CODE27_URL:-http://host.docker.internal:31360/v1}
+      - LLAMACPP_FRONTIER_URL=${LLAMACPP_FRONTIER_URL:-http://127.0.0.1:31360/v1}
+      - LLAMA_API_KEY=${LLAMA_API_KEY:-change-me}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      # Production default: require Bearer on /api/runs* (audit D-002). Local-only: set false in .env.
+      - ALFA_AI_API_TOKEN=${ALFA_AI_API_TOKEN:-}
+      - ALFA_AI_REQUIRE_API_AUTH=${ALFA_AI_REQUIRE_API_AUTH:-true}
+      # X-Forwarded-* trust (Uvicorn); never use * — see Dockerfile.api / uvicorn.dev/deployment
+      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1,10.0.0.0/8,172.16.0.0/12}
+      # Production: hide OpenAPI/Swagger on LAN/tunnel paths (audit FASTAPI-004 / backlog #30).
+      - ALFA_AI_DISABLE_OPENAPI=${ALFA_AI_DISABLE_OPENAPI:-true}
+      # Web app JWT auth (required for /alfa-ai/* chat app).
+      # Value exported from deploy/.env in scripts/_alfa_compose_env.sh before compose up.
+      - ALFA_AI_JWT_SECRET=${ALFA_AI_JWT_SECRET:?set ALFA_AI_JWT_SECRET in deploy/.env}
+      # Admin CIDR check: Docker publish on :8420 SNATs client to bridge IP (172.x). When true,
+      # allow admin through that path and rely on host firewall for :8420 ( + LAN only).
+      - ALFA_AI_ADMIN_DOCKER_PUBLISH=${ALFA_AI_ADMIN_DOCKER_PUBLISH:-true}
+      # Empty = any authenticated IP; production: tailnet + LAN (see deploy/env.example).
+      - ALFA_AI_ADMIN_ALLOWED_CIDRS=${ALFA_AI_ADMIN_ALLOWED_CIDRS:-}
+      - ALFA_AI_ALERT_WEBHOOK_TOKEN=${ALFA_AI_ALERT_WEBHOOK_TOKEN:-}
+      - ALFA_AI_ALERT_ALLOWED_CIDRS=${ALFA_AI_ALERT_ALLOWED_CIDRS:-}
+      - ALFA_AI_INCIDENT_QUEUE=${ALFA_AI_INCIDENT_QUEUE:-true}
+      - ALFA_AI_REMEDIATION_ENABLED=${ALFA_AI_REMEDIATION_ENABLED:-false}
+      - ALFA_AI_REMEDIATION_GITHUB_TOKEN=${ALFA_AI_REMEDIATION_GITHUB_TOKEN:-}
+      - ALFA_AI_REMEDIATION_ALFA_REPO=${ALFA_AI_REMEDIATION_ALFA_REPO:-example/alfa-ai}
+      - ALFA_AI_REMEDIATION_MONITORING_REPO=${ALFA_AI_REMEDIATION_MONITORING_REPO:-example/monitoring}
+      - ALFA_AI_HOST_ACTIONS_ENABLED=${ALFA_AI_HOST_ACTIONS_ENABLED:-0}
+      - ALFA_AI_HOST_ACTIONS_SSH_KEY=${ALFA_AI_HOST_ACTIONS_SSH_KEY:-/app/secrets/host-actions/id_ed25519}
+      - ALFA_AI_HOST_ACTIONS_HOSTS_JSON=${ALFA_AI_HOST_ACTIONS_HOSTS_JSON:-}
+      - ALFA_AI_HOME_ASSISTANT_ENABLED=${ALFA_AI_HOME_ASSISTANT_ENABLED:-0}
+      - ALFA_AI_HOME_ASSISTANT_BASE_URL=${ALFA_AI_HOME_ASSISTANT_BASE_URL:-http://apps}
+      - ALFA_AI_HOME_ASSISTANT_TOKEN_FILE=${ALFA_AI_HOME_ASSISTANT_TOKEN_FILE:-/app/secrets/home-assistant/long-lived.token}
+      - ALFA_POOL_SWITCHD_URL=${ALFA_POOL_SWITCHD_URL:-http://host.docker.internal:8421}
+      - ALFA_POOL_SWITCH_BEARER_TOKEN=${ALFA_POOL_SWITCH_BEARER_TOKEN:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:${ALFA_AI_API_HOST_PORT:-8412}:8000"
+      # LAN operator console (same API + /operator UI). Intentionally binds 0.0.0.0
+      # so peers on orchestrator/24 can reach http://<brain>:8420/operator/ without
+      # going through nginx — this is a documented Rule 3 exception (audit
+      # CROSS-RULE-002 / docs/PORT_ASSIGNMENTS.md § "LAN-bind exceptions").
+      # OPERATOR MUST restrict with UFW: see docs/PORT_ASSIGNMENTS.md for the
+      # exact `ufw allow from orchestrator/24 to any port 8420 proto tcp` recipe.
+      - "${ALFA_AI_OPERATOR_CONSOLE_HOST_PORT:-8420}:8000"
+    restart: unless-stopped
+    # DBs (postgres/redis) are provided by dedicated protected stacks; this compose
+    # no longer defines or depends on them. Bring dedicated stacks up first.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5).read()",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    networks:
+      - alfa-ai-network
+      - tunnel_network
+      # Shared with deploy/searxng (web_search). Pre-create: alfa_ensure_searxng_network.
+      - alfa-searxng
+
+  # Optional one-shot CLI agent (same image as API but no HTTP server). Not part of default `up`:
+  # the API image HEALTHCHECK curls :8000, which would always fail here. Enable with:
+  #   docker compose --profile agent-worker up -d
+  alfa-ai-worker:
+    profiles:
+      - agent-worker
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+      args:
+        BUILD_HASH: ${BUILD_HASH:-local}
+    image: alfa-ai-app:${BUILD_HASH:-local}
+    pull_policy: build
+    container_name: alfa-ai-worker
+    runtime: runc
+    working_dir: /app
+    command: ["python", "-m", "src.runtime.agent_worker"]
+    env_file:
+      - .env
+    volumes:
+      - alfa-ai-workspace:/workspace
+      # Hub git clone (brain hub). Read-only audit source for agent missions.
+      - ${ALFA_AI_AUDIT_REPO_HOST_PATH:-/mnt/HDDs/Alfa-AI/repo/alfa-ai}:/workspace/alfa-ai:ro
+    environment:
+      - ALFA_AI_PROVIDER=${ALFA_AI_PROVIDER:-litellm}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-frontier-code}
+      - ALFA_AI_AGENT_MODEL=${ALFA_AI_AGENT_MODEL:-frontier-code}
+      - ALFA_AI_AGENT_FALLBACK_MODEL=${ALFA_AI_AGENT_FALLBACK_MODEL:-agent}
+      - ALFA_AI_AGENT_MAX_STEPS=${ALFA_AI_AGENT_MAX_STEPS:-8}
+      - LITELLM_BASE_URL=${LITELLM_BASE_URL:-http://alfa-ai-litellm:4000}
+      - LITELLM_API_KEY=${LITELLM_MASTER_KEY:?set LITELLM_MASTER_KEY in deploy/.env (audit LITELLM-007)}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - ALFA_AI_WORKSPACE_ROOT=/workspace
+      - ALFA_AI_AUDIT_ROOTS=${ALFA_AI_AUDIT_ROOTS:-alfa-ai=/workspace/alfa-ai}
+      - ALFA_AI_WORKER_HOST=${ALFA_AI_WORKER_HOST:-111}
+      - ALFA_AI_WORKER_HEARTBEAT_TTL_SEC=${ALFA_AI_WORKER_HEARTBEAT_TTL_SEC:-120}
+      - ALFA_AI_AGENT_WORKER_POLL_SEC=${ALFA_AI_AGENT_WORKER_POLL_SEC:-15}
+      - ALFA_AI_AGENT_WORKER_BETWEEN_TASK_SEC=${ALFA_AI_AGENT_WORKER_BETWEEN_TASK_SEC:-2}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://alfaai@alfa-postgres:5432/alfaai}
+      - REDIS_URL=${REDIS_URL:-redis://:${REDIS_PASSWORD:?required - set REDIS_PASSWORD in deploy/.env (audit REDIS-002)}@alfa-redis:6379/0}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+    depends_on:
+      alfa-ai-api:
+        condition: service_healthy
+      alfa-ai-litellm:
+        condition: service_healthy
+    networks:
+      - alfa-ai-network
+      - alfa-searxng
+
+  alfa-ai-incident-worker:
+    profiles:
+      - incident-worker
+    image: alfa-ai-app:${BUILD_HASH:-local}
+    pull_policy: build
+    container_name: alfa-ai-incident-worker
+    runtime: runc
+    working_dir: /app
+    command: ["python", "-m", "src.incident.worker"]
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://alfaai@alfa-postgres:5432/alfaai}
+      - REDIS_URL=${REDIS_URL:-redis://:${REDIS_PASSWORD:?required - set REDIS_PASSWORD in deploy/.env (audit REDIS-002)}@alfa-redis:6379/0}
+      - ALFA_AI_INCIDENT_AUTO_FIX=${ALFA_AI_INCIDENT_AUTO_FIX:-false}
+      - ALFA_AI_INCIDENT_AUTO_FIX_MAX_PER_HOUR=${ALFA_AI_INCIDENT_AUTO_FIX_MAX_PER_HOUR:-3}
+      - ALFA_AI_INCIDENT_WORKER_POLL_SEC=${ALFA_AI_INCIDENT_WORKER_POLL_SEC:-5}
+      - ALFA_AI_INCIDENT_LLM_TRIAGE=${ALFA_AI_INCIDENT_LLM_TRIAGE:-false}
+      - ALFA_AI_ALERT_AI_TRIAGE=${ALFA_AI_ALERT_AI_TRIAGE:-true}
+      - LITELLM_BASE_URL=${LITELLM_BASE_URL:-http://alfa-ai-litellm:4000}
+      - LITELLM_API_KEY=${LITELLM_MASTER_KEY:?set LITELLM_MASTER_KEY in deploy/.env (audit LITELLM-007)}
+      - ALFA_AI_PROVIDER=${ALFA_AI_PROVIDER:-litellm}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-frontier-code}
+      - ALFA_AI_INCIDENT_SMTP_HOST=${ALFA_AI_INCIDENT_SMTP_HOST:-}
+      - ALFA_AI_INCIDENT_SMTP_PORT=${ALFA_AI_INCIDENT_SMTP_PORT:-587}
+      - ALFA_AI_INCIDENT_SMTP_USER=${ALFA_AI_INCIDENT_SMTP_USER:-}
+      - ALFA_AI_INCIDENT_SMTP_PASSWORD=${ALFA_AI_INCIDENT_SMTP_PASSWORD:-}
+      - ALFA_AI_INCIDENT_SMTP_FROM=${ALFA_AI_INCIDENT_SMTP_FROM:-}
+      - ALFA_AI_INCIDENT_SMTP_TLS=${ALFA_AI_INCIDENT_SMTP_TLS:-true}
+      - ALFA_AI_INCIDENT_NOTIFY_EMAIL=${ALFA_AI_INCIDENT_NOTIFY_EMAIL:-}
+      - ALFA_AI_REMEDIATION_ENABLED=${ALFA_AI_REMEDIATION_ENABLED:-false}
+      - ALFA_AI_REMEDIATION_GITHUB_TOKEN=${ALFA_AI_REMEDIATION_GITHUB_TOKEN:-}
+      - ALFA_AI_REMEDIATION_ALFA_REPO=${ALFA_AI_REMEDIATION_ALFA_REPO:-example/alfa-ai}
+      - ALFA_AI_REMEDIATION_MONITORING_REPO=${ALFA_AI_REMEDIATION_MONITORING_REPO:-example/monitoring}
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+    depends_on:
+      alfa-ai-api:
+        condition: service_healthy
+    # DBs live in dedicated protected stacks (started separately).
+    networks:
+      - alfa-ai-network
+
+  # DB services (postgres/redis) removed from this compose.
+  # They are now provided by the dedicated protected stacks:
+  #   docker-compose.postgres.yml  (container: alfa-postgres, stack "postgres")
+  #   docker-compose.redis.yml     (container: alfa-redis,   stack "redis")
+  # Declared in stackshub.yml (and stacksapps.yml on the apps host).
+  # Start the dedicated stacks BEFORE the brain stack. Never 'down -v' them.
+  # Update DATABASE_URL / REDIS_URL (or use the new defaults) to target
+  # 'alfa-postgres:5432' / 'alfa-redis:6379' via the shared Docker network.
+
+  alfa-ai-litellm:
+    # Pinned numbered stable tag (docs/STABLE_RELEASES.md). Not :latest or main-stable.
+    # v1.103.2 is the 2026-10-01 non-prerelease image. Re-run cosign verify in
+    # hub-111/deploy.sh when this tag changes.
+    image: ghcr.io/berriai/litellm:v1.103.2
+    container_name: alfa-ai-litellm
+    runtime: runc
+    command: >
+      --config /app/config.yaml
+      --host 0.0.0.0
+      --port 4000
+      --num_workers ${LITELLM_NUM_WORKERS:-4}
+    volumes:
+      - ./${LITELLM_CONFIG:-litellm_config.yaml}:/app/config.yaml:ro
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      # CPU fleet (idle-CPU model serving) — orchestrator / gaming-c / gaming-b Ollama endpoints.
+      - OLLAMA_FLEET_93_URL=${OLLAMA_FLEET_93_URL:-http://orchestrator}
+      - OLLAMA_FLEET_148_URL=${OLLAMA_FLEET_148_URL:-http://orchestrator}
+      - OLLAMA_FLEET_249_URL=${OLLAMA_FLEET_249_URL:-http://orchestrator}
+      # RAG plane: CPU embed :11435 + CPU rerank :8360 on rag (VM110), production since
+      # the 2026-07-18 cutover from inference (docs/RAG_148_TO_110_MIGRATION.md). Matches
+      # deploy/env.example, src/api/worker_monitoring.py and switch-pool-27b.sh.
+      # litellm_config.yaml references os.environ/EMBED_BASE_URL; without a compose-level
+      # default an operator who upgrades .env without copying the new key gets 502 on
+      # every embeddings call.
+      - EMBED_BASE_URL=${EMBED_BASE_URL:-http://orchestrator}
+      - RERANK_BASE_URL=${RERANK_BASE_URL:-http://orchestrator}
+      # alfa-coder-draft (litellm_config*.yaml) reads os.environ/LLAMACPP_7B_URL. When the
+      # operator has not promoted the gaming-c 7B yet, point it at a closed local port so the
+      # row fails fast (connection refused -> inference overlay falls back to frontier-code)
+      # instead of resolving to no api_base (LiteLLM's public OpenAI default).
+      - LLAMACPP_7B_URL=${LLAMACPP_7B_URL:-http://127.0.0.1:9/v1}
+      # G-rev llama.cpp endpoints (deploy/.env on brain hub)
+      # RETIRED 35B MoE -- leave unset unless switch-pool-35b.sh revive.
+      - LLAMACPP_35B_URL=${LLAMACPP_35B_URL:-}
+      - LLAMACPP_CODE27_URL=${LLAMACPP_CODE27_URL:-http://host.docker.internal:31360/v1}
+      # Retired: coordinator on orchestrator :31360 (Phase H CPU coordinator on hub :31360)
+      - LLAMACPP_FRONTIER_URL=${LLAMACPP_FRONTIER_URL:-http://host.docker.internal:31360/v1}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:?set LITELLM_MASTER_KEY in deploy/.env (audit LITELLM-007)}
+      # Phase F1 LiteLLM Redis cache (litellm_config.yaml cache_params).
+      - REDIS_HOST=${LITELLM_REDIS_HOST:-alfa-redis}
+      - REDIS_PORT=${LITELLM_REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?required - set REDIS_PASSWORD in deploy/.env (audit REDIS-002)}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Publish on all interfaces so LAN peers (apps apps, smoke scripts, bots) can
+    # reach LiteLLM at http://<brain-ip>:<ALFA_AI_LITELLM_HOST_PORT>. Loopback-only
+    # (127.0.0.1:...) breaks curl from web-sites to hub hub:4000. Restrict
+    # exposure with host firewall (UFW) to orchestrator/24 if needed.
+    ports:
+      - "${ALFA_AI_LITELLM_HOST_PORT:-8413}:4000"
+    restart: unless-stopped
+    # Use Python instead of curl to avoid image-dependent healthcheck failures.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness', timeout=5).read()",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 40s
+    networks:
+      - alfa-ai-network
+      - tunnel_network
+
+  alfa-ai-nginx:
+    image: nginx:1.30.5-alpine
+    container_name: alfa-ai-nginx
+    runtime: runc
+    volumes:
+      # Directory bind-mount avoids Docker Desktop single-file bind bugs (stale nginx.conf as dir).
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    ports:
+      - "127.0.0.1:${ALFA_AI_NGINX_HOST_PORT:-8090}:80"
+    restart: unless-stopped
+    depends_on:
+      alfa-ai-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - alfa-ai-network
+      - tunnel_network
+
+volumes:
+  # postgres/redis data volumes moved to dedicated stacks (docker-compose.*.yml).
+  # alfa-postgres-data / alfa-redis-data are managed by the postgres/redis stacks.
+  alfa-ai-workspace:
+
+networks:
+  # Pre-created by deploy scripts / alfa_ensure_shared_network (postgres/redis use it as external).
+  alfa-ai-network:
+    external: true
+    name: alfa-ai-network
+  tunnel_network:
+    external: true
+  # Shared with deploy/searxng compose (alfa_ensure_searxng_network). Official external
+  # network pattern: https://docs.docker.com/compose/how-tos/networking/
+  alfa-searxng:
+    external: true
+    name: alfa-searxng

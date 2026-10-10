@@ -1,0 +1,29 @@
+# hub hub -- GPU Ollama sidecar for qwen3-embedding:4b only (Phase E1).
+# Binds RTX 5060 for embed workloads (:11435). CPU Ollama on :11434 is optional legacy.
+#
+# Usage (on hub):
+#   sudo bash deploy/cluster-members/hub/deploy-rag-sidecars.sh embed
+#
+# LiteLLM: set EMBED_BASE_URL=http://host.docker.internal:11435 in deploy/.env
+
+services:
+  alfa-ai-embed-ollama:
+    image: ollama/ollama:0.35.1
+    container_name: alfa-ai-embed-ollama
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_NUM_GPU=1
+    volumes:
+      - ${OLLAMA_EMBED_MODELS_DIR:-/mnt/ssd/ollama-embed}:/root/.ollama
+    ports:
+      # Publish on all interfaces so LiteLLM (bridge network + host.docker.internal)
+      # and LAN smoke tests can reach :11435. Do not bind 127.0.0.1 only.
+      - "11435:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

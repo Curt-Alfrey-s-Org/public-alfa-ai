@@ -1,0 +1,58 @@
+# Declarative stack manifest for VM100 — inference rpc-server shard host ONLY.
+#
+# Proxmox guest on pve-i5 (hypervisor). GTX 1660 Super passthrough.
+# Since 2026-07-09 the 1660S runs a single inference rpc-server shard (:31354), brought
+# up by deploy-grev27-pool-shard.sh / operator-cluster-100.sh start-shard (not by this
+# manifest). RAG (embed :11435 + rerank :8360) lives on rag; brain + DB on hub.
+# The legacy RAG stacks below are disabled and kept for rollback only.
+#
+# See docs/DOCKGE_100_OPERATOR.md and docs/RAG_148_TO_110_MIGRATION.md.
+#
+# Usage:
+#   bash deploy/cluster-members/pool-shard-opt-in/deploy.sh            # dockge-agent only
+#   bash deploy/cluster-members/pool-shard-opt-in/deploy.sh --list
+
+version: 1
+# Must match the git clone path on VM100 (e.g. /home/operator/alfa-ai).
+repo_root: /home/operator/alfa-ai
+stacks_dir: /opt/stacks
+
+global_stop_projects: []
+
+stacks:
+
+  # RETIRED 2026-07-09 — RAG moved off pool-opt-in (now on rag). Would contend with the
+  # inference shard for the 1660S. Rollback only; do not re-enable without an
+  # architecture change.
+  - name: alfa-ai-embed
+    path: deploy/cluster-members/pool-shard-opt-in
+    enabled: false
+    compose:
+      - docker-compose.embed-gpu.yml
+    env_file: deploy/cluster-members/pool-shard-opt-in/.env.embed
+    critical: false
+    notes: |
+      RETIRED legacy GPU Ollama embed (:11435 on 1660S).
+      Production embed: http://orchestrator (vm110-alfa-ai).
+
+  # RETIRED 2026-07-09 — see alfa-ai-embed above.
+  - name: alfa-ai-rerank
+    path: deploy/cluster-members/pool-shard-opt-in
+    enabled: false
+    compose:
+      - docker-compose.reranker.yml
+    env_file: deploy/cluster-members/pool-shard-opt-in/.env.embed
+    critical: false
+    notes: |
+      RETIRED legacy llama reranker (:8360 on 1660S).
+      Production rerank: http://orchestrator (vm110-alfa-ai).
+
+  - name: dockge-agent
+    path: deploy/cluster-members/pool-shard-opt-in
+    compose:
+      - docker-compose.dockge-agent.yml
+    env_file: deploy/cluster-members/pool-shard-opt-in/.env.dockge
+    critical: false
+    notes: |
+      Dockge agent for pool-opt-in, registered on primary Dockge at
+      http://orchestrator (Remote agents -> http://orchestrator).

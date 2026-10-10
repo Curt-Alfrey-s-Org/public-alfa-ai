@@ -1,0 +1,21 @@
+# Pinned for reproducible installs (audit FASTAPI-003 / backlog #18).
+# To bump: loosen pins temporarily, resolve in a clean venv, then freeze top-level versions here.
+python-dotenv==1.2.3
+openai==2.36.0
+httpx==0.28.1
+fastapi==0.141.1
+uvicorn==0.54.0
+psycopg[binary]==3.3.6
+psycopg_pool==3.3.3
+redis==7.4.0
+PyYAML==6.0.3
+PyJWT==2.15.0
+# Web auth router (src/api/routers/auth.py) — required when the API image includes /alfa-ai/api/auth
+bcrypt==5.0.0
+pyotp==2.10.0
+email-validator==2.3.0
+pytest==9.1.1
+asyncssh==2.24.0
+prometheus_client==0.26.0
+# Optional Streamable HTTP MCP inspect mount (ALFA_AI_MCP_ENABLED=0 default)
+mcp==2.2.0

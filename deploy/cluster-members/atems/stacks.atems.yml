@@ -1,0 +1,8 @@
+# Stack symlinks for Dockge visibility on VM103 (ATEMS).
+
+version: 1
+host: atems
+
+stack_links:
+  - name: atems
+    path: /home/operator/atems

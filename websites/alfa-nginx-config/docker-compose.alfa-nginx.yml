@@ -1,0 +1,31 @@
+# Alfa Nginx — dedicated proxy for www.example.com + bot subdomains.
+# Cloudflare Tunnel (cf-alfa) routes to http://alfa-nginx:80.
+# Independent of probilliards-nginx; Rankings-Bot scripts never touch this.
+#
+# Usage: docker compose -f alfa-nginx-config/docker-compose.alfa-nginx.yml up -d
+# Requires: tunnel_network exists; alfa_wordpress_1, bot APIs/frontends on tunnel_network.
+# Run from /home/operator: docker compose -f alfa-nginx-config/docker-compose.alfa-nginx.yml up -d
+
+services:
+  alfa-nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: alfa-nginx:latest
+    container_name: alfa-nginx
+    restart: unless-stopped
+    networks:
+      - tunnel_network
+      - rv-auto-finder-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+networks:
+  tunnel_network:
+    external: true
+  rv-auto-finder-network:
+    external: true

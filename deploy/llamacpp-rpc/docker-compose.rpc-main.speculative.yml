@@ -1,0 +1,8 @@
+# Optional Phase E2 overlay: speculative decoding draft on coordinator GPU.
+# Included only when MODEL_DRAFT_FILE is set in .env.rpc (see deploy-llamacpp-rpc.ps1).
+services:
+  llamacpp-server:
+    environment:
+      - LLAMA_ARG_MODEL_DRAFT=/models/${MODEL_DRAFT_FILE:?MODEL_DRAFT_FILE must be set when using speculative overlay}
+      - LLAMA_ARG_N_GPU_LAYERS_DRAFT=${N_GPU_LAYERS_DRAFT:-999}
+      - LLAMA_ARG_DRAFT_MAX=${DRAFT_MAX:-16}

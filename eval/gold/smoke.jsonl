@@ -1,0 +1,10 @@
+{"id": "smoke-01", "suite": "researcher", "goal": "List the primary LiteLLM config file path in this repo.", "must_include_any": ["litellm_config", "deploy/litellm"]}
+{"id": "smoke-02", "suite": "researcher", "goal": "Name the env var for the agent primary model.", "must_include_any": ["ALFA_AI_AGENT_MODEL", "frontier-code"]}
+{"id": "smoke-03", "suite": "coder", "goal": "Where is WorkflowRunner planning implemented?", "must_include_any": ["workflow.py", "plan_implement_review_fix"]}
+{"id": "smoke-04", "suite": "debugger", "goal": "What line must check-work end with?", "must_include_any": ["VERDICT: PASS", "VERDICT: FAIL"]}
+{"id": "smoke-05", "suite": "doc_maker", "goal": "Which doc is the learning loop SSoT plan?", "must_include_any": ["LEARNING_LOOP_JUDGE_SLEEP", "learning loop"]}
+{"id": "smoke-06", "suite": "researcher", "goal": "Default ALFA_AI_AGENT_MUTATE_ENABLED value?", "must_include_any": ["0", "false", "off"]}
+{"id": "smoke-07", "suite": "coder", "goal": "Error catalog JSONL default filename?", "must_include_any": ["errors.jsonl"]}
+{"id": "smoke-08", "suite": "researcher", "goal": "Host IPs for trainer island?", "must_include_any": ["gaming-c", "gaming-b", "gaming-a"]}
+{"id": "smoke-09", "suite": "debugger", "goal": "Primary code correctness gate before LLM judge?", "must_include_any": ["test", "pytest", "check-work", "lint"]}
+{"id": "smoke-10", "suite": "researcher", "goal": "Which skill audits a repo read-only?", "must_include_any": ["audit-repo"]}

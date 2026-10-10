@@ -1,0 +1,33 @@
+# Contracts-bot /LAN admin edge on inference (:8422 -> apps:8003).
+# Same pattern as docker-compose.edge-api.yml (:8420 -> hub).
+# Port 8421 is reserved for pool-switchd on hub (see PORT_ASSIGNMENTS.md).
+#
+# Admin URL: http://100.112.43.57:8422/
+# Docs: docs/CONTRACTS_BOT__EDGE.md
+#
+# Usage (from deploy/ on inference):
+#   bash ../deploy/cluster-members/_common/start-contracts-edge.sh
+
+name: alfa-ai-contracts-edge
+
+services:
+  contracts-bot-edge:
+    image: nginx:1.30.5-alpine
+    container_name: contracts-bot-edge
+    restart: unless-stopped
+    volumes:
+      - ./nginx-edge/contracts-bot-edge.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${CONTRACTS_BOT_EDGE_HOST_PORT:-8422}:8000"
+    networks:
+      - tunnel_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  tunnel_network:
+    external: true

@@ -1,0 +1,33 @@
+# Phase H: 27B RPC pool CPU coordinator on hub (:31360).
+#
+# Production quant: Qwen3.8-27B-Q8_0.gguf (rollback: Qwen3.6-27B-Q8_0.gguf; PARALLEL=5 / CTX_SIZE=262144).
+# MTP NOT for multi-slot pool: Unsloth docs say -np > 1 unsupported with draft-mtp
+# (https://unsloth.ai/docs/models/qwen3.6). See docs/inference_PERF_AND_SHARDS.md.
+#
+# CPU orchestration + remote rpc-server shards. Pair with
+# docker-compose.rpc-main.cpu-coordinator.yml (no local GPU).
+# Official RPC: https://github.com/ggml-org/llama.cpp/blob/master/tools/rpc/README.md
+# Official server flags: https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md
+
+services:
+  llamacpp-server:
+    container_name: llamacpp-server-148-grev27-pool
+    # CLI --env-file interpolates this Compose file only. The wrapper below
+    # reads RPC_BACKENDS from container env, so inject .env.rpc into the
+    # container (https://docs.docker.com/reference/compose-file/services/#env_file).
+    env_file:
+      - .env.rpc
+    environment:
+      RPC_BACKENDS: ${RPC_BACKENDS:?RPC_BACKENDS must be set in .env.rpc}
+    volumes:
+      - ./run-llama-server-coordinator.sh:/scripts/run-llama-server-coordinator.sh:ro
+    command:
+      - /bin/bash
+      - /scripts/run-llama-server-coordinator.sh
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${MAIN_PORT:-31360}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 900s

@@ -1,0 +1,13 @@
+# Optional LoRA adapter mount for coordinator (pair with run-llama-server-coordinator.sh).
+#
+# Set in .env.rpc:
+#   LORA_GGUF=my-adapter.gguf
+#   LORA_SCALE=1.0
+#   LORA_MODELS_DIR=/models/lora
+#
+# Host path default: hub llama-cpp/lora tree on hub.
+
+services:
+  llamacpp-server:
+    volumes:
+      - ${LORA_HOST_DIR:-/mnt/HDDs/Alfa-AI/llama-cpp/lora}:/models/lora:ro

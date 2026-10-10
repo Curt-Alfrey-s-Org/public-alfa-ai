@@ -1,0 +1,13 @@
+# Win10 NAT path - copy to C:\Users\<repo-owner>\.wslconfig
+# Mirrored mode is NOT supported on Win10 (build < 22621).
+# Use install-wsl-nat-portproxy.ps1 for LAN reachability.
+#
+# Canonical doc: docs/WINDOWS_WSL_DOCKER_ENGINE.md (Win10 NAT portproxy)
+
+[wsl2]
+swap=0
+localhostForwarding=true
+vmIdleTimeout=-1
+
+[general]
+instanceIdleTimeout=-1

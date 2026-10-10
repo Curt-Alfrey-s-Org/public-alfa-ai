@@ -1,0 +1,43 @@
+# Edge reverse proxy: tunnel_network alfa-ai-api:8000 -> brain on hub.
+# Cluster hub (inference) — Jul 2026 migration off apps apps host.
+#
+# Host :8420 ( / LAN admin login): http://<inference--ip>:8420/alfa-ai/login
+# Legacy apps edge retired; use deploy/cluster-members/_common/start-edge-api.sh on inference.
+#
+# Usage (from deploy/):
+#   docker compose -f docker-compose.edge-api.yml up -d
+#
+# Wired into cluster start via Invoke-AlfaAiCluster.ps1 (start-edge-api.sh on inference).
+
+name: alfa-ai-edge-api
+
+services:
+  alfa-ai-api:
+    # Pinned to match the brain nginx standard (deploy/docker-compose.yml,
+    # Dockerfile.frontend) instead of the floating nginx:alpine tag.
+    image: nginx:1.30.5-alpine
+    container_name: alfa-ai-api
+    restart: unless-stopped
+    volumes:
+      - ./nginx-edge/alfa-ai-edge.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      #  + LAN admin URL (same port as brain operator console on hub).
+      - "${ALFA_AI_EDGE_HOST_PORT:-8420}:8000"
+    networks:
+      - tunnel_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://127.0.0.1:8000/health",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  tunnel_network:
+    external: true

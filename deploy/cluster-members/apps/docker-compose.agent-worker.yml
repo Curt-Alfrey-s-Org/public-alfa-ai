@@ -1,0 +1,15 @@
+# Agent worker on apps-105 (apps)
+# cp env.agent-worker.example .env.agent-worker && docker compose -f docker-compose.agent-worker.yml up -d
+
+services:
+  alfa-ai-worker:
+    extends:
+      file: ../_common/docker-compose.agent-worker.remote.yml
+      service: alfa-ai-worker
+    volumes:
+      - alfa-ai-agent-workspace:/workspace
+      - /home/operator/contracts-bot:/workspace/contracts-bot:ro
+      - /home/operator/alfaqd-website:/workspace/alfaqd-website:ro
+
+volumes:
+  alfa-ai-agent-workspace:

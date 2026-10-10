@@ -1,0 +1,16 @@
+# Paste these lines into deploy/.env on hub (replace the matching keys).
+# Path on hub: /mnt/HDDs/Alfa-AI/repo/alfa-ai/deploy/.env
+#
+# Find and replace (or delete old lines and add these):
+#
+DEFAULT_MODEL=frontier-code
+ALFA_INFERENCE_MODE=inference
+CHAT_MODELS=fast,chat,frontier,frontier-code
+OPERATOR_CHAT_MODEL=qwen3:8b
+#
+# Removed from CHAT_MODELS (audit errors):
+#   qwen3.5:27b  -- retired Phase G chat alias
+#   qwen3:8b     -- operator-only; use OPERATOR_CHAT_MODEL, not web picker
+#
+# After save on hub:
+#   bash /mnt/HDDs/Alfa-AI/repo/alfa-ai/scripts/brain_redeploy_api.sh

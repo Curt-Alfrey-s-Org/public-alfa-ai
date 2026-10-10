@@ -1,0 +1,14 @@
+# Optional merge on hub when remote agent workers need LAN Postgres.
+# Always pair with docker-compose.postgres.yml (loopback 127.0.0.1:5540 for exporters).
+#
+# Usage:
+#   docker compose -f docker-compose.postgres.yml -f docker-compose.postgres.lan-bind.yml up -d
+#
+# Env: ALFA_AI_POSTGRES_LAN_BIND (default hub), ALFA_AI_POSTGRES_HOST_PORT (5540)
+
+name: postgres
+
+services:
+  alfa-postgres:
+    ports:
+      - "${ALFA_AI_POSTGRES_LAN_BIND:-hub}:${ALFA_AI_POSTGRES_HOST_PORT:-5540}:5432"

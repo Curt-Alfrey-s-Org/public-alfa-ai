@@ -1,0 +1,35 @@
+# llama.cpp rpc-server -- inference Code27 only (RTX 3050 6 GB, port 31357).
+#
+# nvidia-smi on ai-148: index 0 = RTX 3050, index 1 = RTX 3060 (Ollama 35B).
+# Phase G: run ONLY this service; keep :31356 / gpu0 stopped.
+#
+# Usage (from deploy/llamacpp-rpc on inference):
+#   docker compose -f docker-compose.rpc-serverinference-code27.yml --env-file .env.rpc up -d --no-build
+
+services:
+  llamacpp-rpc-148-3050:
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: never
+    container_name: llamacpp-rpc-148-gpu1
+    working_dir: /app
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "31357"
+      - -c
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    network_mode: host
+    shm_size: "1g"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    restart: "no"  # rpc-server crash must fail the readiness gate (no false-green auto-reopen)
+    volumes:
+      - ${RPC_CACHE_DIR:-./rpc-cache-148}:/root/.cache/llama.cpp/rpc

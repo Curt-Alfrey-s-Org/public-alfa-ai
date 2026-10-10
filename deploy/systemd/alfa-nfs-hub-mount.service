@@ -1,0 +1,15 @@
+[Unit]
+Description=ALFa hub NFS hub mount (/mnt/cluster)
+Documentation=file://@ALFA_REPO_DIR@/docs/CLUSTER_SHARED_STORAGE.md
+After=network-online.target
+Wants=network-online.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=ALFA_REPO_DIR=@ALFA_REPO_DIR@
+ExecStart=/bin/bash @ALFA_REPO_DIR@/deploy/cluster-members/_common/preflight-nfs-hub.sh
+
+[Install]
+WantedBy=multi-user.target

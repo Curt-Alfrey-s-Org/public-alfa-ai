@@ -1,0 +1,10 @@
+# alfa-net-exclusive host defaults (Pi5 orchestrator)
+ETH_DEV=eth0
+WIFI_DEV=wlan0
+ETH_CON=Wired connection 1
+WIFI_CON=StarWarz2
+ADDR=orchestrator/24
+GW=orchestrator
+DNS=orchestrator
+POLL_SEC=5
+UP_WAIT_SEC=30

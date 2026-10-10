@@ -1,0 +1,18 @@
+[Unit]
+Description=ALFa Pi5 wired/Wi-Fi exclusive owner of orchestrator
+Documentation=https://www.networkmanager.dev/docs/api/latest/nmcli.html
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/alfa-net-exclusive.sh
+Restart=always
+RestartSec=5
+# Carrier-aware stop: park Wi-Fi if eth0 still has carrier; otherwise raise
+# StarWarz2 so a stopped unit does not leave a headless board dark.
+# systemd.service(5) ExecStopPost: https://manpages.debian.org/bookworm/systemd/systemd.service.5.en.html
+ExecStopPost=-/usr/local/sbin/alfa-net-exclusive-stop.sh
+
+[Install]
+WantedBy=multi-user.target

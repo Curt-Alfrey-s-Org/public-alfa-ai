@@ -1,0 +1,39 @@
+# Copy into monitoring repo: prometheus/rules/alfa-ai-operational.yml
+# Reload Prometheus on monitor after sync.
+# Alerts route via Alertmanager to POST /alfa-ai/api/internal/alerts (MONITORING_AI_REVIEW.md).
+#
+# Hysteresis: keep_firing_for per Prometheus alerting rules docs
+# https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+# Prevents FIRING/RESOLVED email flaps when the admin JWT bearer briefly 401s
+# between cron refreshes or during short brain blips.
+
+groups:
+  - name: alfa-ai-operational
+    rules:
+      - alert: AlfaAiJwtSecretEphemeral
+        expr: alfa_ai_jwt_secret_ephemeral == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: alfa-ai-brain
+        annotations:
+          summary: "Brain JWT secret is ephemeral"
+          description: >
+            ALFA_AI_JWT_SECRET is unset. Admin sessions and the Prometheus bearer on monitor
+            are invalidated on every alfa-ai-api recreate. Set a stable secret in
+            deploy/.env on hub and refresh scrape credentials.
+
+      - alert: AlfaAiIncidentMetricsScrapeDown
+        expr: up{job="alfa-ai-incident-metrics"} == 0
+        for: 30m
+        keep_firing_for: 30m
+        labels:
+          severity: critical
+          service: alfa-ai-brain
+        annotations:
+          summary: "Prometheus cannot scrape alfa-ai incident metrics"
+          description: >
+            Job alfa-ai-incident-metrics on monitor has been down for 30m. Common cause:
+            expired admin bearer JWT after a failed refresh while the brain was down.
+            Run scripts/refresh-alfa-ai-prometheus-bearer.sh on monitor (no Prometheus
+            restart). Re-login on hub:8420 only if the refresh token itself is invalid.

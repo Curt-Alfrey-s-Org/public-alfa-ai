@@ -1,0 +1,45 @@
+# Dockge agent for apps, registered with the primary Dockge UI on orchestrator
+# (http://orchestrator -> Settings -> Remote agents).
+#
+# Resolves audit finding CROSS-105-001 (docs/audit/audit-findings.md): previously
+# stacksapps.yml referenced this file but it did not exist.
+#
+# Dockge upstream docs:
+#   https://github.com/louislam/dockge
+#
+# Per workspace `.cursorrules` Rule 3 the host port is bound loopback-only
+# (127.0.0.1:5001:5001); cross-host registration from orchestrator uses the LAN IP
+# directly when the operator binds Dockge agent to the LAN — for that mode
+# override DOCKGE_AGENT_BIND_ADDR to "0.0.0.0" in deploy/.env.dockge and add
+# a UFW rule restricting :5001 to orchestrator/24 (see audit backlog #11/#34).
+#
+# Environment file (operator-managed, gitignored):
+#   deploy/cluster-members/apps/.env.dockge
+
+name: dockge-agent
+
+services:
+  dockge-agent:
+    image: louislam/dockge:1
+    container_name: dockge-agent
+    runtime: runc
+    restart: unless-stopped
+    environment:
+      DOCKGE_DATA_DIR: /app/data
+      DOCKGE_STACKS_DIR: ${DOCKGE_STACKS_DIR:-/opt/stacks}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKGE_STACKS_DIR:-/opt/stacks}:/opt/stacks
+      - dockge-agent-data:/app/data
+    ports:
+      - "${DOCKGE_AGENT_BIND_ADDR:-127.0.0.1}:${DOCKGE_AGENT_HOST_PORT:-5001}:5001"
+    networks:
+      - alfa-shared-network
+
+volumes:
+  dockge-agent-data:
+
+networks:
+  alfa-shared-network:
+    name: alfa-shared-network
+    external: true

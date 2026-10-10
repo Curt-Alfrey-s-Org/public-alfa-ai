@@ -1,0 +1,16 @@
+# llama.cpp coordinator -- orchestrator WSL Docker Engine only.
+#
+# network_mode: host in rpc-main.yml binds inside the WSL VM only; Windows
+# netstat and LAN clients on orchestrator cannot reach :31360. Published ports
+# fix that (same pattern as docker-compose.rpc-server.dual-gpu-93.yml).
+#
+# Usage (from deploy/llamacpp-rpc on orchestrator, WSL docker):
+#   docker compose --env-file .env.rpc \
+#     -f docker-compose.rpc-main.yml \
+#     -f docker-compose.rpc-main.wsl-93.yml up -d --no-build
+
+services:
+  llamacpp-server:
+    network_mode: bridge
+    ports:
+      - "31360:31360"

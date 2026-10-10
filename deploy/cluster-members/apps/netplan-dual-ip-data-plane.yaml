@@ -1,0 +1,47 @@
+# VM 105 (apps apps host): virtio mgmt apps (bond0) + second NIC data plane .104 (enp6s19).
+# Apply: sudo bash deploy/cluster-members/apps/setup-dual-ip-data-plane.sh
+#
+# .104 and apps share orchestrator/24 (same L2). A second NIC on the same subnet MUST use
+# source policy routing or the kernel adds a competing on-link /24 route and the host suffers
+# ARP flux + asymmetric returns, intermittently breaking ALL LAN egress (inference verify, bots).
+# Fix (official netplan source-routing example + Linux ARP sysctls; see docs/PORT_ASSIGNMENTS.md):
+#   - data IP is /32 (no competing main-table /24 route; unbound egress always bond0 default)
+#   - routing-policy: from .104 -> table 101 (on-link /24 only, no gateway: server-only data plane)
+#   - ARP sysctls applied by the setup script (arp_ignore=1, arp_announce=2)
+# Ref: https://netplan.readthedocs.io/en/stable/examples/ (source routing)
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    enp6s18:
+      dhcp4: no
+      dhcp6: no
+    enp6s19:
+      dhcp4: no
+      dhcp6: no
+      addresses:
+        - orchestrator/32
+      routes:
+        - to: orchestrator/24
+          scope: link
+          table: 101
+      routing-policy:
+        - from: orchestrator
+          table: 101
+  bonds:
+    bond0:
+      interfaces:
+        - enp6s18
+      parameters:
+        mode: active-backup
+        mii-monitor-interval: 100
+      addresses:
+        - apps/24
+      routes:
+        - to: default
+          via: orchestrator
+      nameservers:
+        addresses:
+          - 1.1.1.1
+        search:
+          - mylab.home

@@ -1,0 +1,13 @@
+# LiteLLM liveliness probe failure (gateway / proxy tier).
+alertname: LiteLLMProbeFailed
+description: LiteLLM /health/liveliness probe failed from monitoring.
+investigate:
+  - type: http
+    name: litellm-liveliness
+    url: http://alfa-ai-litellm:4000/health/liveliness
+    timeout_sec: 15
+  - type: script
+    name: wait-litellm
+    path: deploy/cluster-members/_common/wait-litellm-liveliness.sh
+    args: ["60"]
+    timeout_sec: 90

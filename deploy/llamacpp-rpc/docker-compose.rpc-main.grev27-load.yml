@@ -1,0 +1,7 @@
+# G-rev1 load pass: single start, no restart loop during first weight load.
+
+services:
+  llamacpp-server:
+    restart: "no"
+    healthcheck:
+      disable: true

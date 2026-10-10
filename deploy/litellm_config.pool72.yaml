@@ -1,0 +1,63 @@
+# LiteLLM — 72B dense exclusive overlay (pool72 mode)
+#
+# Activated when brain deploy/.env sets LITELLM_CONFIG=litellm_config.pool72.yaml
+# (switch-pool-72b.sh). Exclusive Qwen2.5-72B-Instruct on coordinator :31360.
+#
+# SSoT: docs/GREV72_72B_OPERATOR.md
+# Official GGUF: https://huggingface.co/Qwen/Qwen2.5-72B-Instruct-GGUF
+
+model_list:
+  - model_name: "frontier"
+    litellm_params:
+      model: "openai/qwen2.5-72b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1800
+      stream_timeout: 180
+      request_timeout: 1800
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  - model_name: "qwen2.5-72b"
+    litellm_params:
+      model: "openai/qwen2.5-72b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1800
+      stream_timeout: 180
+      request_timeout: 1800
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  # During exclusive 72B, map coding alias to the loaded chat model so picker
+  # does not 404. Production coding returns to 27B after switch-pool-27b.
+  - model_name: "frontier-code"
+    litellm_params:
+      model: "openai/qwen2.5-72b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1800
+      stream_timeout: 180
+      request_timeout: 1800
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+litellm_settings:
+  drop_params: false
+  set_verbose: false
+  request_timeout: 1800
+  num_retries: 1
+
+router_settings:
+  timeout: 1800
+  expose_router_debug_in_errors: false
+  routing_strategy: "simple-shuffle"
+  cooldown_time: 120
+  allowed_fails: 1
+  fallbacks:
+    - frontier: []
+    - qwen2.5-72b: []
+    - frontier-code: []

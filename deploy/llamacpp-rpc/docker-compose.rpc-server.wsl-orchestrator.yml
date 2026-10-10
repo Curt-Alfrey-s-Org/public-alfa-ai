@@ -1,0 +1,22 @@
+# orchestrator WSL Docker Engine -- Win10 NAT path ONLY (not mirrored Win11).
+#
+# When networkingMode=mirrored + firewall=true (.wslconfig), use
+# docker-compose.rpc-server.yml alone (network_mode: host) -- same Petals
+# pattern; LAN peers reach RPC_PORT via Hyper-V firewall rules.
+#
+# When Win10 NAT (no mirrored), bridge+ports or install-wsl-nat-portproxy.ps1
+# is required. Microsoft NAT docs:
+# https://learn.microsoft.com/en-us/windows/wsl/networking#accessing-a-wsl-2-distribution-from-your-local-area-network-lan
+#
+# Usage (Win10 NAT only):
+#   docker compose --env-file .env.rpc \
+#     -f docker-compose.rpc-server.yml \
+#     -f docker-compose.rpc-server.wsl-93.yml up -d --no-build
+
+services:
+  llamacpp-rpc-server:
+    network_mode: bridge
+    ports:
+      - "${RPC_PORT:-31350}:${RPC_PORT:-31350}"
+    gpus: all
+    deploy: {}

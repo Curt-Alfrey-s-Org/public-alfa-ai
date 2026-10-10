@@ -1,0 +1,63 @@
+# llama.cpp rpc-server — orchestrator only (2× RTX 3060 12 GB).
+#
+# SECURITY: Published ports 31350/31355 hit all interfaces on Windows — Defender
+# Firewall must scope inbound to LAN. See docs/LLAMACPP_RPC_OPERATOR.md § "Security and networking".
+# Two independent rpc-server processes: GPU 0 → :31350, GPU 1 → :31355.
+# See docs/PORT_ASSIGNMENTS.md. Mutually exclusive with Petals on those GPUs.
+#
+# Usage (from deploy/llamacpp-rpc):
+#   Create deploy/llamacpp-rpc/.env.rpc on this host (gitignored) before compose up.
+#   docker compose -f docker-compose.rpc-server.dual-gpu-93.yml --env-file .env.rpc up -d --build
+#
+# Do not use on single-GPU hosts.
+#
+# Docker Desktop (Win11): `network_mode: host` binds inside the Linux VM only —
+# Windows `netstat` will not show :31350/:31355. Use published ports below so shards
+# are reachable from the LAN at orchestrator.
+
+services:
+  llamacpp-rpc-93-gpu0:
+    build:
+      context: .
+      dockerfile: Dockerfile.rpc-cuda128
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: build
+    container_name: llamacpp-rpc-93-gpu0
+    working_dir: /app
+    # b7186 rpc-server parses --host / --port as *separate* argv (not --host=...). No --mem flag.
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "31350"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - GGML_CUDA_DISABLE_GRAPHS=1
+    ports:
+      - "31350:31350"
+    # Docker Compose (non-Swarm): use top-level `gpus` — `deploy.resources` is often ignored on Docker Desktop.
+    gpus: all
+    restart: "no"  # rpc-server crash must fail the readiness gate (no false-green auto-reopen)
+
+  llamacpp-rpc-93-gpu1:
+    build:
+      context: .
+      dockerfile: Dockerfile.rpc-cuda128
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: build
+    container_name: llamacpp-rpc-93-gpu1
+    working_dir: /app
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "31355"
+    environment:
+      - CUDA_VISIBLE_DEVICES=1
+      - GGML_CUDA_DISABLE_GRAPHS=1
+    ports:
+      - "31355:31355"
+    gpus: all
+    restart: "no"  # rpc-server crash must fail the readiness gate (no false-green auto-reopen)

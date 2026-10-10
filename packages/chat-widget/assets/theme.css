@@ -1,0 +1,15 @@
+/**
+ * ALFa chat window CSS custom properties.
+ * Generated from packages/chat-widget/src/theme.ts — edit theme.ts first, then
+ * run: bash scripts/sync-chat-widget-theme-css.sh
+ */
+:root {
+  --alfa-panel-bg: #0a1838;
+  --alfa-header-bg: #07122c;
+  --alfa-panel-border: #142452;
+  --alfa-dock-sky: #38bdf8;
+  --alfa-dock-muted: #94a3b8;
+  /* Fixed dock geometry (AlfaAskAiDock / contracts-bot reference) */
+  --alfa-dock-width: min(calc(100vw - 2rem), 28rem);
+  --alfa-dock-height: min(85dvh, 36rem);
+}

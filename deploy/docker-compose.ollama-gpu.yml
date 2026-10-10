@@ -1,0 +1,50 @@
+# Optional: Ollama in Docker with NVIDIA GPUs (merge with docker-compose.yml).
+#
+# Prerequisites (host): NVIDIA driver + NVIDIA Container Toolkit configured for Docker.
+#   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+# Smoke test:
+#   docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+#
+# GPU in Compose (device reservations):
+#   https://docs.docker.com/compose/how-tos/gpu-support/
+#
+# Usage (from deploy/):
+#   Create deploy/.env on this host (gitignored) before compose up.
+#   # Set OLLAMA_BASE_URL=http://alfa-ai-ollama:11434
+#   docker compose --env-file .env -f docker-compose.yml -f docker-compose.ollama-gpu.yml up -d
+#
+# April 2026 cluster rebalance: tiers 0/1/2 collapsed onto a single CPU MoE
+# (`qwen3-coder:30b-a3b-q4_K_M`) on hub's 7900X + DDR5-5200. Embeddings live on gaming-c
+# primary / gaming-b cold-standby. Only bring this GPU compose up if you are
+# deliberately running Ollama on the GPU (e.g. on a dev box); the canonical
+# hub brain now runs Ollama CPU-bound.
+#   docker exec alfa-ai-ollama ollama pull qwen3-coder:30b-a3b-q4_K_M
+#   docker exec alfa-ai-ollama ollama pull nomic-embed-text   # embed hosts only
+# See deploy/cluster-members/_common/pull-models.sh for the canonical list.
+
+services:
+  alfa-ai-ollama:
+    # Pinned GA tag ollama/ollama:0.35.1 (2026-09-29). Not :latest and not 0.40.0-rc0.
+    image: ollama/ollama:0.35.1
+    container_name: alfa-ai-ollama
+    restart: unless-stopped
+    volumes:
+      # hub (hub): bind-mount ZFS hot dataset (see docs/CLUSTER_SHARED_STORAGE.md).
+      # Override via OLLAMA_HOST_MODELS_DIR in a local override if your path differs.
+      - ${OLLAMA_HOST_MODELS_DIR:-/mnt/ssd/ollama}:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    networks:
+      - alfa-ai-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  alfa-ai-litellm:
+    depends_on:
+      - alfa-ai-ollama
+

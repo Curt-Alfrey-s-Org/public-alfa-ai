@@ -1,0 +1,37 @@
+# llama.cpp rpc-server -- VM100 GTX 1660 Super only (:31354).
+#
+# RAG (embed + rerank) retired from VM100 -- moved to CPU on inference. See
+# .cursor/plans/RAG_248_VM100_SHARD.md. 1660 Super (Turing sm_75) uses the
+# existing alfa-llamacpp-rpc:cuda128 image (no Pascal variant needed).
+#
+# Usage (from deploy/llamacpp-rpc on VM100):
+#   docker compose -f docker-compose.rpc-serverpool-opt-in-gpu1660s.yml up -d --no-build --force-recreate
+#
+# Sanity check:
+#   nc -zv 127.0.0.1 31354
+#   nc -zv orchestrator 31354
+
+services:
+  llamacpp-rpc-100-gpu1660s:
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: never
+    container_name: llamacpp-rpc-100-gpu1660s
+    working_dir: /app
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "31354"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - GGML_CUDA_DISABLE_GRAPHS=1
+    network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    restart: "no"  # rpc-server crash must fail the readiness gate (no false-green auto-reopen)

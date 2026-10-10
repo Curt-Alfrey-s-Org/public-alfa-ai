@@ -1,0 +1,5 @@
+# hub CPU coordinator for 27B pool (distinct container name from inference GPU pool).
+
+services:
+  llamacpp-server:
+    container_name: llamacpp-server-111-grev27-pool

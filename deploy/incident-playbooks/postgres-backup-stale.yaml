@@ -1,0 +1,8 @@
+# Postgres backup freshness metric stale (ROADMAP Phase 4 hook).
+alertname: AlfaAiPostgresBackupStale
+description: Nightly pg_dump sidecar has not reported success within the SLA window.
+investigate:
+  - type: http
+    name: api-health
+    url: http://alfa-ai-api:8000/health
+    timeout_sec: 15

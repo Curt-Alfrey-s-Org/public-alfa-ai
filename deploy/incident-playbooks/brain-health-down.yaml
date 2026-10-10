@@ -1,0 +1,13 @@
+# Brain operator health probe failure (blackbox or internal check).
+alertname: AlfaAiBrainHealthDown
+description: ALFa AI brain / operator health endpoint unreachable.
+investigate:
+  - type: http
+    name: operator-health
+    url: http://alfa-ai-api:8000/health
+    timeout_sec: 15
+  - type: script
+    name: wait-brain-health
+    path: deploy/cluster-members/_common/wait-brain-health.sh
+    args: ["30"]
+    timeout_sec: 45

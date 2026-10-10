@@ -1,0 +1,15 @@
+[Unit]
+Description=ALFa wired/Wi-Fi exclusive owner of the static LAN address
+Documentation=https://www.networkmanager.dev/docs/api/latest/nmcli.html
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/alfa-net-exclusive.sh
+Restart=always
+RestartSec=5
+ExecStopPost=-/usr/local/sbin/alfa-net-exclusive-stop.sh
+
+[Install]
+WantedBy=multi-user.target

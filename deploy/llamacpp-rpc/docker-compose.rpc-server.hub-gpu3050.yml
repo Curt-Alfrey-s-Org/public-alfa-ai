@@ -1,0 +1,36 @@
+# llama.cpp rpc-server -- hub RTX 3050 only (:31353).
+#
+# Petals worker must be stopped before pool (single-GPU mutual exclusion on hub).
+# nvidia-smi on hub (Jul 2026): GPU 0 = RTX 3050 6 GB only.
+#
+# Usage (from deploy/llamacpp-rpc on hub):
+#   sudo docker compose -f docker-compose.rpc-serverhub-gpu3050.yml up -d --no-build --force-recreate
+#
+# Sanity check:
+#   nc -zv 127.0.0.1 31353
+#   nc -zv hub 31353
+
+services:
+  llamacpp-rpc-111-gpu3050:
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: never
+    container_name: llamacpp-rpc-111-gpu3050
+    working_dir: /app
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "31353"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - GGML_CUDA_DISABLE_GRAPHS=1
+    network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    restart: "no"  # rpc-server crash must fail the readiness gate (no false-green auto-reopen)

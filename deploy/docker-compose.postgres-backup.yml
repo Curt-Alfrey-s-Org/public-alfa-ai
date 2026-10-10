@@ -1,0 +1,80 @@
+# Nightly Postgres backup sidecar for the ALFa AI brain DB — Phase 3 backup
+# workstream (docs/ROADMAP.md "Production readiness plan" / audit PG-005).
+#
+# Design (see docs/operations/POSTGRES_BACKUP_RESTORE_111.md for the full
+# runbook + restore procedure):
+#   - pg_dump custom format (-Fc) of every non-template database + cluster
+#     globals, verified with `pg_restore --list` after each dump
+#     (PostgreSQL 16 manual: https://www.postgresql.org/docs/16/backup-dump.html).
+#   - Retention: 7 daily / 4 weekly (ALFA_AI_PG_BACKUP_KEEP_*).
+#   - Lands on the canonical HDD hub tier on hub
+#     (docs/CLUSTER_SHARED_STORAGE.md §1 — DR assumes the HDD pool), default
+#     /mnt/HDDs/Alfa-AI/backups/postgres. Override via ALFA_AI_BACKUP_HOST_DIR.
+#   - Freshness hook: writes metrics/alfa_ai_pg_backup.prom in node_exporter
+#     textfile-collector format for the monitoring stack (ROADMAP Phase 4).
+#
+# Deployment shape: separate opt-in Compose project. Targets the *dedicated*
+# protected postgres stack (docker-compose.postgres.yml, container alfa-postgres),
+# not a DB inside the brain compose. Brought up by
+# deploy/cluster-members/hub/deploy.sh after the dedicated DB stack(s).
+# The network (alfa-ai-network or the ALFA_SHARED_DOCKER_NETWORK used by the
+# dedicated postgres stack) must exist. One owner per compose project.
+#
+# Run from deploy/ with the same env file as the brain stack:
+#   docker compose --env-file .env -f docker-compose.postgres-backup.yml up -d
+#
+# Manual on-demand backup (idempotent; rotation cleans up):
+#   docker exec alfa-ai-postgres-backup /bin/sh /usr/local/bin/pg-backup.sh once
+#
+# The sidecar connects to the dedicated DB container 'alfa-postgres' (PGHOST).
+#
+# No host ports are published (workspace .cursorrules — no new port bindings).
+
+name: alfa-ai-postgres-backup
+
+services:
+  alfa-ai-postgres-backup:
+    # Track the server image used by the dedicated postgres stack
+    # (deploy/docker-compose.postgres.yml). pg_dump must match server major.
+    image: postgres:16.14-alpine
+    container_name: alfa-ai-postgres-backup
+    runtime: runc
+    entrypoint: ["/bin/sh", "/usr/local/bin/pg-backup.sh"]
+    environment:
+      PGHOST: ${ALFA_PG_CONTAINER:-alfa-postgres}
+      PGPORT: "5432"
+      PGUSER: ${ALFA_POSTGRES_USER:-alfaai}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env — matches the dedicated postgres (audit PG-003)}
+      BACKUP_TIME: ${ALFA_AI_PG_BACKUP_TIME:-03:30}
+      KEEP_DAILY: ${ALFA_AI_PG_BACKUP_KEEP_DAILY:-7}
+      KEEP_WEEKLY: ${ALFA_AI_PG_BACKUP_KEEP_WEEKLY:-4}
+      MAX_AGE_HOURS: ${ALFA_AI_PG_BACKUP_MAX_AGE_HOURS:-26}
+      # Ephemeral heartbeat — tmpfs below; last-success/dump-sizes stay on /backups.
+      LIVENESS_FILE: /run/alfa-pg-backup/liveness
+    volumes:
+      - ./postgres/backup/pg-backup.sh:/usr/local/bin/pg-backup.sh:ro
+      - ${ALFA_AI_BACKUP_HOST_DIR:-/mnt/HDDs/Alfa-AI/backups/postgres}:/backups
+    # 30 s daemon touch on tmpfs (not the HDD bind). Compose tmpfs:
+    # https://docs.docker.com/reference/compose-file/services/#tmpfs
+    tmpfs:
+      - /run/alfa-pg-backup:mode=755,uid=70,gid=70
+    restart: unless-stopped
+    # Daemon touches LIVENESS_FILE every 30 s; stale mtime means the loop is
+    # wedged (distinct from a failed backup — freshness metric + docker logs).
+    # Healthcheck: https://docs.docker.com/reference/compose-file/services/#healthcheck
+    healthcheck:
+      test: ["CMD-SHELL", "find /run/alfa-pg-backup/liveness -mmin -10 2>/dev/null | grep -q ."]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - backup-net
+
+networks:
+  # Join the same network as the dedicated postgres stack so PGHOST DNS works.
+  # Default alfa-ai-network for hub; set ALFA_SHARED_DOCKER_NETWORK to match
+  # what the postgres stack is using (e.g. alfa-ai-network).
+  backup-net:
+    name: ${ALFA_SHARED_DOCKER_NETWORK:-alfa-ai-network}
+    external: true

@@ -1,0 +1,39 @@
+# Optional overlay: --cache-reuse for dense Code profile (Qwen3.6-27B) only.
+# Do NOT use with Chat / Qwen3.5-122B hybrid (llama.cpp #18497).
+# Included when CACHE_REUSE is set in .env.rpc (see deploy-llamacpp-rpc.ps1).
+services:
+  llamacpp-server:
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${MAIN_PORT:-31360}"
+      - --model
+      - "/models/${MODEL_FILE:-Qwen3-Coder-Next-Q4_K_M/Qwen3-Coder-Next-Q4_K_M-00001-of-00004.gguf}"
+      - --alias
+      - "${MODEL_ALIAS:-qwen3-coder-next-80b-a3b}"
+      - --ctx-size
+      - "${CTX_SIZE:-32768}"
+      - --cache-type-k
+      - "${CACHE_TYPE_K:-q8_0}"
+      - --cache-type-v
+      - "${CACHE_TYPE_V:-q8_0}"
+      - --n-gpu-layers
+      - "${N_GPU_LAYERS:-999}"
+      - --rpc
+      - "${RPC_BACKENDS:?RPC_BACKENDS must be set in .env.rpc (e.g. orchestrator,orchestrator,hub)}"
+      - --jinja
+      - --chat-template
+      - "${CHAT_TEMPLATE:-chatml}"
+      - --parallel
+      - "${PARALLEL:-1}"
+      - --threads-http
+      - "${THREADS_HTTP:-16}"
+      - --cache-reuse
+      - "${CACHE_REUSE:-256}"
+      # Prompt-cache save aborts on RPC-owned KV (upstream #26128); keep 0.
+      - --cache-ram
+      - "${CACHE_RAM:-0}"
+      - --slot-save-path
+      - "/slot-cache"

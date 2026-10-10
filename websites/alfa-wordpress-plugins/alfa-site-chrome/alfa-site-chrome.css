@@ -1,0 +1,252 @@
+/* ALFa site chrome — unified dark layout matching Blog Home template */
+
+:root {
+  --alfa-bg: #010101;
+  --alfa-brand-gradient: linear-gradient(90deg, rgb(2, 3, 129) 36%, rgb(102, 139, 235) 100%);
+  --alfa-panel-gradient: linear-gradient(135deg, rgb(2, 3, 129) 0%, rgb(102, 139, 235) 100%);
+  --alfa-heading: #c3cfe0;
+  --alfa-text: #ffffff;
+  --alfa-text-muted: #e2e8f0;
+  --alfa-accent: #7dd3fc;
+  --alfa-max-width: 1200px;
+}
+
+body.alfa-site-unified {
+  background: var(--alfa-bg) !important;
+  color: var(--alfa-text);
+}
+
+body.alfa-site-unified .wp-site-blocks,
+body.alfa-site-unified main,
+body.alfa-site-unified .entry-content {
+  background: transparent !important;
+}
+
+/* Sticky nav */
+.alfa-site-chrome-header {
+  position: sticky;
+  top: 0;
+  z-index: 100020;
+  background: #000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.alfa-site-chrome-header__inner {
+  max-width: var(--alfa-max-width);
+  margin: 0 auto;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alfa-site-chrome-header__nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem 1.5rem;
+}
+
+.alfa-site-chrome-header__nav a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 0.35rem 0;
+}
+
+.alfa-site-chrome-header__nav a:hover,
+.alfa-site-chrome-header__nav a:focus-visible,
+.alfa-site-chrome-header__nav a.is-active {
+  color: var(--alfa-accent);
+}
+
+.alfa-site-chrome-header__nav a.is-active {
+  font-weight: 600;
+}
+
+/* Brand bar (inner pages — homepage has its own in template) */
+.alfa-site-brand-bar {
+  background: var(--alfa-brand-gradient);
+  text-align: center;
+  padding: 0.85rem 1.25rem;
+  margin: 0;
+}
+
+.alfa-site-brand-bar h4 {
+  margin: 0;
+  color: var(--alfa-heading);
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.alfa-site-brand-bar em {
+  font-style: italic;
+}
+
+/* Tagline + page title band */
+.alfa-site-page-intro {
+  background: var(--alfa-bg);
+  padding: 1.25rem 1.25rem 0.5rem;
+  text-align: center;
+}
+
+.alfa-site-page-intro__tagline {
+  margin: 0 0 0.75rem;
+  color: var(--alfa-text);
+  font-size: var(--wp--preset--font-size--x-large, 1.5rem);
+  line-height: 1.35;
+  font-weight: 400;
+}
+
+.alfa-site-page-intro__title {
+  margin: 0;
+  color: var(--alfa-heading);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+/* Content shell */
+.alfa-site-page {
+  background: var(--alfa-bg);
+  padding: 0 1rem 2rem;
+}
+
+.alfa-site-page__inner {
+  max-width: var(--alfa-max-width);
+  margin: 0 auto;
+}
+
+.alfa-site-page__panel {
+  background: var(--alfa-panel-gradient);
+  border-radius: 4px;
+  padding: 1.75rem 1.5rem 2rem;
+  color: var(--alfa-text);
+}
+
+.alfa-site-page__panel p,
+.alfa-site-page__panel li,
+.alfa-site-page__panel h1,
+.alfa-site-page__panel h2,
+.alfa-site-page__panel h3,
+.alfa-site-page__panel h4,
+.alfa-site-page__panel h5 {
+  color: inherit;
+}
+
+.alfa-site-page__panel p {
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.alfa-site-page__panel .has-medium-font-size,
+.alfa-site-page__panel p.has-medium-font-size {
+  font-size: 1.125rem;
+}
+
+.alfa-site-page__panel strong {
+  font-weight: 700;
+}
+
+.alfa-site-page__panel a {
+  color: var(--alfa-accent);
+}
+
+.alfa-site-page__panel .wp-block-separator {
+  border-color: rgba(255, 255, 255, 0.35);
+  margin: 1.25rem 0;
+}
+
+.alfa-site-page__panel .wp-block-social-links {
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+/* Hide Spectra default page chrome that conflicts with ALFa layout */
+body.alfa-site-unified .wp-block-post-title,
+body.alfa-site-unified .swt-block-featured-image,
+body.alfa-site-unified .swt-block-comment-group,
+body.alfa-site-unified .has-surface-background-color:not(.alfa-site-page__panel) {
+  display: none !important;
+}
+
+body.alfa-site-unified .wp-block-group.has-surface-background-color {
+  background: transparent !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+}
+
+body.alfa-site-unified .wp-block-post-content {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* UAG blocks on inner pages blend into panel */
+body.alfa-site-unified .alfa-site-page__panel .uagb-is-root-container {
+  background: transparent !important;
+}
+
+body.alfa-site-unified .alfa-site-page__panel .wp-block-uagb-container {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Projects shortcode inside panel */
+body.alfa-site-unified .alfa-projects-wrapper {
+  margin: 0;
+  max-width: none;
+  padding: 0;
+}
+
+body.alfa-site-unified .alfa-projects-intro {
+  font-size: 1rem;
+  color: var(--alfa-text-muted);
+}
+
+body.alfa-site-unified .alfa-projects-category-title {
+  font-size: 1.25rem;
+}
+
+body.alfa-site-unified .alfa-project-name {
+  font-size: 1.0625rem;
+}
+
+body.alfa-site-unified .alfa-project-desc {
+  font-size: 0.9375rem;
+}
+
+/* Footer */
+.alfa-site-chrome-footer {
+  margin-top: 2rem;
+  padding: 1.5rem 1.25rem 2rem;
+  text-align: center;
+  background: #000;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.alfa-site-chrome-footer__credit {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+.wp-site-blocks > header.wp-block-template-part:not(.alfa-site-chrome-header) {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  .alfa-site-chrome-header__nav {
+    gap: 0.5rem 1rem;
+  }
+
+  .alfa-site-page-intro__tagline {
+    font-size: 1.2rem;
+  }
+
+  .alfa-site-page__panel {
+    padding: 1.25rem 1rem 1.5rem;
+  }
+}

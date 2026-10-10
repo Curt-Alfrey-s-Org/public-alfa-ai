@@ -1,0 +1,55 @@
+# Code27 CPU coordinator: pinned RPC split (no --fit probe loop).
+#
+# Upstream:
+#   tools/rpc/README.md --tensor-split proportions; rpc-server -c local cache
+#   #11807 -- do not use -ngl 0 with RPC
+#   #19745 -- --no-mmap avoids mmap stalls during RPC tensor upload
+#
+services:
+  llamacpp-server:
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${MAIN_PORT:-31360}"
+      - --model
+      - "/models/${MODEL_FILE:-Qwen3.8-27B-Q8_0.gguf}"
+      - --alias
+      - "${MODEL_ALIAS:-qwen3.6-27b}"
+      - --ctx-size
+      - "${CTX_SIZE:-4096}"
+      - --cache-type-k
+      - "${CACHE_TYPE_K:-q8_0}"
+      - --cache-type-v
+      - "${CACHE_TYPE_V:-q8_0}"
+      - --n-gpu-layers
+      - "${N_GPU_LAYERS:-999}"
+      - --tensor-split
+      - "${TENSOR_SPLIT:-4,3,2}"
+      - --split-mode
+      - layer
+      - --main-gpu
+      - "0"
+      - --flash-attn
+      - "on"
+      - --no-warmup
+      - --fit
+      - off
+      - --no-mmap
+      - --rpc
+      - "${RPC_BACKENDS:?RPC_BACKENDS must be set in .env.rpc}"
+      - --jinja
+      - --chat-template
+      - "${CHAT_TEMPLATE:-chatml}"
+      - --parallel
+      - "${PARALLEL:-1}"
+      - --threads-http
+      - "${THREADS_HTTP:-16}"
+      - --cache-reuse
+      - "${CACHE_REUSE:-256}"
+      # Prompt-cache save aborts on RPC-owned KV (upstream #26128); keep 0.
+      - --cache-ram
+      - "${CACHE_RAM:-0}"
+      - --slot-save-path
+      - "/slot-cache"

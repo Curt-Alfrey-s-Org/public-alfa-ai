@@ -1,0 +1,56 @@
+# G-rev27 preflight: RTX 3060 (12 GB, physical index 1) only before dual-GPU deploy.
+#
+# Official single-GPU: https://github.com/ggml-org/llama.cpp/blob/master/docs/multi-gpu.md
+#   Recipe 3: -dev CUDA1 when listing devices; here CUDA_VISIBLE_DEVICES=1 so use -sm none.
+# Omit --n-gpu-layers and --ctx-size so --fit sizes GPU layers + CPU spill.
+#
+# Used only by deploy-grev27-local.sh phase 1 (one-shot; torn down before phase 2).
+
+services:
+  llamacpp-server:
+    container_name: llamacpp-server-148-preflight-gpu1
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${PREFLIGHT_PORT:-31359}"
+      - --model
+      - "/models/${MODEL_FILE:-Qwen3.6-27B-Q4_K_M.gguf}"
+      - --alias
+      - "${MODEL_ALIAS:-qwen3.6-27b-preflight}"
+      - --split-mode
+      - none
+      - --cache-type-k
+      - "${CACHE_TYPE_K:-q8_0}"
+      - --cache-type-v
+      - "${CACHE_TYPE_V:-q8_0}"
+      - --flash-attn
+      - "on"
+      - --fit
+      - on
+      - --fit-target
+      - "${FIT_TARGET_GPU1:-1536}"
+      - --fit-ctx
+      - "${FIT_CTX:-2048}"
+      - --no-warmup
+      - --jinja
+      - --chat-template
+      - "${CHAT_TEMPLATE:-chatml}"
+      - --parallel
+      - "${PARALLEL:-1}"
+      - --threads
+      - "${THREADS:-12}"
+      - --threads-http
+      - "${THREADS_HTTP:-8}"
+      - --slot-save-path
+      - "/slot-cache"
+    environment:
+      - CUDA_VISIBLE_DEVICES=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: [gpu]

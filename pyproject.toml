@@ -1,0 +1,32 @@
+[project]
+name = "alfa-ai"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "openai>=1.0.0",
+    "httpx>=0.25.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "psycopg[binary]>=3.2.0",
+    "redis>=5.0.0",
+    "PyYAML>=6.0.0",
+    "asyncssh>=2.24.0",  # PYSEC-2026-3808 / CVE-2026-62949 fixed in 2.24.0
+    "mcp==2.2.0",
+    # Imported by src/ but previously only listed in requirements.txt (org review
+    # 2026-09-25 "deps missing from pyproject.toml"). Exact pins stay in requirements.txt.
+    "psycopg_pool>=3.2.0",
+    "PyJWT>=2.8.0",
+    "bcrypt>=4.0.0",
+    "pyotp>=2.9.0",
+    "email-validator>=2.0.0",
+    "prometheus_client>=0.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

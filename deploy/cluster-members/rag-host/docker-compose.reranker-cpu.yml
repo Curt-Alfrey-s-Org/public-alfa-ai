@@ -1,0 +1,38 @@
+# rag -- CPU llama-server rerank (:8360), no NVIDIA driver required.
+#
+# Uses official CPU server image (not alfa-llamacpp-rpc:cuda128):
+# https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md
+#
+# Usage (on rag):
+#   bash deploy/cluster-members/rag-host/deploy-rag-cpu.sh
+
+services:
+  alfa-ai-reranker:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    pull_policy: missing
+    container_name: alfa-ai-reranker
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${RERANK_PORT:-8360}"
+      - --model
+      - "/models/${RERANK_MODEL_FILE:?RERANK_MODEL_FILE must be set}"
+      - --alias
+      - "${RERANK_MODEL_ALIAS:-qwen3-reranker-0.6b}"
+      - --ctx-size
+      - "${RERANK_CTX_SIZE:-1024}"
+      - --parallel
+      - "${RERANK_PARALLEL:-2}"
+      - --embedding
+      - --rerank
+    volumes:
+      - ${RERANK_MODELS_DIR:-/mnt/cluster/models/downloads/reranker}:/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${RERANK_PORT:-8360}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s

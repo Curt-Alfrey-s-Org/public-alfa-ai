@@ -1,0 +1,30 @@
+# Dockge agent for VM100, registered with primary Dockge on orchestrator.
+# Environment: deploy/cluster-members/pool-shard-opt-in/.env.dockge (gitignored)
+
+name: dockge-agent
+
+services:
+  dockge-agent:
+    image: louislam/dockge:1
+    container_name: dockge-agent
+    runtime: runc
+    restart: unless-stopped
+    environment:
+      DOCKGE_DATA_DIR: /app/data
+      DOCKGE_STACKS_DIR: ${DOCKGE_STACKS_DIR:-/opt/stacks}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKGE_STACKS_DIR:-/opt/stacks}:/opt/stacks
+      - dockge-agent-data:/app/data
+    ports:
+      - "${DOCKGE_AGENT_BIND_ADDR:-0.0.0.0}:${DOCKGE_AGENT_HOST_PORT:-5001}:5001"
+    networks:
+      - alfa-shared-network
+
+volumes:
+  dockge-agent-data:
+
+networks:
+  alfa-shared-network:
+    name: alfa-shared-network
+    external: true

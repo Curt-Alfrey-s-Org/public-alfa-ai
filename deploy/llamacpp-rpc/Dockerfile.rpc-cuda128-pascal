@@ -1,0 +1,85 @@
+# syntax=docker/dockerfile:1
+# alfa-llamacpp-rpc:cuda128-pascal -- adds Pascal sm_61 for GTX 1070 on gpu-248.
+#
+# Separate tag so the main cuda128 tarball (75;80;86;120 only) stays unchanged
+# for Turing+ hosts. NVIDIA GTX 1070 = compute capability 6.1:
+#   https://developer.nvidia.com/cuda/gpus/legacy
+#
+# Build on hub only:
+#   sudo bash scripts/build-llamacpp-rpc-cuda128-pascal-on-hub.sh
+
+ARG CUDA_VERSION=12.8.0
+ARG UBUNTU_VARIANT=ubuntu22.04
+ARG LLAMACPP_TAG=b10355
+ARG BUILD_JOBS=6
+
+FROM nvidia/cuda:${CUDA_VERSION}-devel-${UBUNTU_VARIANT} AS builder
+
+ARG LLAMACPP_TAG
+ARG BUILD_JOBS
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        cmake \
+        build-essential \
+        ccache \
+        libcurl4-openssl-dev \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY vendor/ /tmp/llama-vendor/
+
+WORKDIR /src
+RUN if [ -f /tmp/llama-vendor/llama.cpp.tar.gz ]; then \
+      mkdir -p llama.cpp \
+      && tar -xzf /tmp/llama-vendor/llama.cpp.tar.gz --strip-components=1 -C llama.cpp; \
+    else \
+      git clone --depth 1 --branch "${LLAMACPP_TAG}" https://github.com/ggml-org/llama.cpp.git; \
+    fi
+
+WORKDIR /src/llama.cpp
+# sm_61 (Pascal) plus existing cluster SMs for one portable pascal tag.
+RUN cmake -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_CUDA=ON \
+        -DGGML_RPC=ON \
+        -DGGML_NATIVE=OFF \
+        -DLLAMA_CURL=ON \
+        -DCMAKE_CUDA_ARCHITECTURES="61;75;80;86;120" \
+        -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -lcuda" \
+        -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -lcuda" \
+    && cmake --build build --config Release -j"${BUILD_JOBS}" \
+        --target llama-server ggml-rpc-server llama-cli
+
+FROM nvidia/cuda:${CUDA_VERSION}-runtime-${UBUNTU_VARIANT}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+        libcurl4 \
+        libgomp1 \
+        ca-certificates \
+        tini \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+# Official binary since b9824: ggml-rpc-server; rpc-server is a fleet alias.
+COPY --from=builder /src/llama.cpp/build/bin/llama-server /usr/local/bin/
+COPY --from=builder /src/llama.cpp/build/bin/ggml-rpc-server /usr/local/bin/
+COPY --from=builder /src/llama.cpp/build/bin/llama-cli    /usr/local/bin/
+COPY --from=builder /src/llama.cpp/build/bin/*.so         /usr/local/lib/
+RUN ldconfig \
+    && ln -sf ggml-rpc-server /usr/local/bin/rpc-server
+
+RUN test -x /usr/local/bin/ggml-rpc-server \
+    && test -x /usr/local/bin/rpc-server \
+    && test -x /usr/local/bin/llama-server \
+    && test -x /usr/local/bin/llama-cli
+
+LABEL org.opencontainers.image.title="alfa-llamacpp-rpc"
+LABEL org.opencontainers.image.description="llama.cpp ggml-rpc-server + llama-server (CUDA 12.8, sm_61/75/80/86/120)"
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["rpc-server", "--host", "0.0.0.0", "--port", "50052"]
