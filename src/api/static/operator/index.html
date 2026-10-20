@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ALFa Operator Console</title>
+    <link rel="stylesheet" href="/operator/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>ALFa Operator Console</h1>
+      <div class="auth-row">
+        <input type="password" id="token-input" placeholder="ALFA_AI_API_TOKEN (Bearer)" autocomplete="off" />
+        <button type="button" id="save-token">Save token</button>
+        <span id="auth-status" class="meta"></span>
+      </div>
+    </div>
+
+    <div class="layout">
+      <section class="panel missions">
+        <h2>Missions (orchestrator)</h2>
+        <p class="meta">Runs and tasks — not website Ask AI / demo traffic.</p>
+        <form id="create-run-form" class="inline-form">
+          <textarea id="goal-input" rows="2" placeholder="New mission goal…"></textarea>
+          <button type="submit">Create run</button>
+        </form>
+        <div class="toolbar">
+          <button type="button" id="refresh-runs">Refresh</button>
+          <button type="button" id="process-next">Process next task</button>
+        </div>
+        <div class="split">
+          <ul id="runs-list" class="list"></ul>
+          <div id="run-detail">
+            <div id="run-meta" class="meta">Select a run.</div>
+            <h3>Tasks</h3>
+            <ul id="tasks-list" class="list small"></ul>
+            <h3>Artifacts</h3>
+            <ul id="artifacts-list" class="list small"></ul>
+            <h3>Live tool events</h3>
+            <ul id="tool-events-list" class="list small mono"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel chat">
+        <h2>Chat (LiteLLM)</h2>
+        <p class="meta">Model: <code id="chat-model-label"></code> — server-side proxy; no API key in page source.</p>
+        <div id="chat-log" class="chat-log"></div>
+        <form id="chat-form" class="chat-form">
+          <textarea id="chat-input" rows="3" placeholder="Message…"></textarea>
+          <button type="submit">Send</button>
+        </form>
+      </section>
+    </div>
+
+    <script src="/operator/app.js"></script>
+  </body>
+</html>

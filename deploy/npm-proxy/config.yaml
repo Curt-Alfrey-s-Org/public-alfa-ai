@@ -1,0 +1,52 @@
+# Verdaccio 5 config for the cluster registry on hub.
+# - Uplinks public packages from npmjs (pull-through cache, unchanged behavior).
+# - Hosts the private @alfa-ai scope (e.g. @alfa-ai/chat-widget) that is NOT
+#   proxied to npmjs and requires auth to publish.
+#
+# Mounted at /verdaccio/conf/config.yaml by docker-compose.verdaccio.yml.
+# Official reference: https://verdaccio.org/docs/configuration
+
+storage: /verdaccio/storage
+# htpasswd auth file lives on the persistent storage volume.
+auth:
+  htpasswd:
+    file: /verdaccio/storage/htpasswd
+    # Set to -1 after the publisher account exists to lock down self-registration.
+    max_users: 1000
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+    cache: true
+
+packages:
+  # Private cluster scope - never proxied to the public internet.
+  '@alfa-ai/*':
+    access: $all
+    publish: $authenticated
+    unpublish: $authenticated
+    # no proxy: these packages exist only on this registry
+
+  '@*/*':
+    access: $all
+    publish: $authenticated
+    unpublish: $authenticated
+    proxy: npmjs
+
+  '**':
+    access: $all
+    publish: $authenticated
+    unpublish: $authenticated
+    proxy: npmjs
+
+# Do not phone home.
+telemetry:
+  enabled: false
+
+log:
+  type: stdout
+  format: pretty
+  level: http
+
+listen:
+  - 0.0.0.0:4873

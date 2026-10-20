@@ -1,0 +1,13 @@
+# Cluster shared-storage override: Redirect Ollama cache onto hub NFS at /mnt/cluster.
+#
+# Merge pattern (Linux/WSL nodes with /mnt/cluster via scripts/mount_nfs_models.sh):
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.ollama-gpu.yml \
+#     -f ../cluster/docker-compose.nfs-mounts.override.yml \
+#     up -d
+
+services:
+  alfa-ai-ollama:
+    volumes:
+      - /mnt/cluster/models/ollama:/root/.ollama

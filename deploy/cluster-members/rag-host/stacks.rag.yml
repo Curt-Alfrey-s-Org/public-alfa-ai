@@ -1,0 +1,8 @@
+# Stack symlinks for Dockge visibility on VM110 (CPU RAG).
+
+version: 1
+host: orchestrator
+
+stack_links:
+  - name: alfa-ai-rag
+    path: /home/operator/alfa-ai/deploy/cluster-members/rag-host

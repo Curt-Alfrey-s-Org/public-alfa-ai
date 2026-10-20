@@ -1,0 +1,89 @@
+# Declarative stack manifest for hub (hub brain + hub).
+#
+# Dockge on hub runs via hub Apps (:31014). Deploy scripts symlink
+# /opt/stacks/<name> -> repo compose paths so the primary UI on orchestrator sees
+# managed stacks when this host is registered as a remote agent.
+#
+# See docs/DOCKGE_111_OPERATOR.md and docs/DOCKGE_AGENT_111_hub.md.
+
+version: 1
+repo_root: /mnt/HDDs/Alfa-AI/repo/alfa-ai
+stacks_dir: /mnt/HDDs/apps/Dockge
+
+global_stop_projects:
+  - deploy
+  - alfa-ai-frontend
+# Note: postgres and redis dedicated stacks are protected infrastructure.
+# They are NOT listed here and must not be stopped by cluster lifecycle.
+# The "alfa-ai" stack below no longer owns DB containers (see dedicated stacks).
+
+stacks:
+
+  - name: alfa-registry
+    path: deploy/cluster-members/hub
+    compose:
+      - docker-compose.registry.yml
+    critical: true
+
+  - name: postgres
+    path: deploy
+    compose:
+      - docker-compose.postgres.yml
+    env_file: deploy/.env
+    critical: true
+    notes: |
+      Protected shared DB stack — the brain's canonical Postgres. Never stopped by cluster stop.
+      Brain (and consumers) connect via Docker DNS ('alfa-postgres') or
+      DATABASE_URL (the only variable the code reads). Data on fast pool (SSD).
+      To attach previous data dir on hub: ALFA_POSTGRES_DATA_PATH=/mnt/ssd/alfa-ai/postgres in .env.
+      See DOT105_SHARED_DATA_PLANE.md (extended for hub), DOCKGE_111_OPERATOR.md,
+      and HOST_STORAGE_AND_NETWORK_STANDARDS.md.
+
+  - name: redis
+    path: deploy
+    compose:
+      - docker-compose.redis.yml
+    env_file: deploy/.env
+    critical: true
+    notes: |
+      Protected shared Redis stack. Never stopped by cluster stop.
+      Consumers use Docker DNS ('alfa-redis') or REDIS_URL.
+      To attach previous data on hub: ALFA_REDIS_DATA_PATH=/mnt/ssd/alfa-ai/redis in .env.
+      See dedicated stack notes and DOT105_SHARED_DATA_PLANE.md.
+
+  - name: alfa-ai
+    path: deploy
+    compose:
+      - docker-compose.yml
+    env_file: deploy/.env
+    critical: true
+    notes: |
+      Brain app services only (api, litellm, nginx).
+      Postgres/Redis have been moved to dedicated protected stacks (postgres, redis)
+      declared separately in this manifest. Cluster stop must never down the DB stacks.
+    stop_projects:
+      - alfa-ai
+
+  - name: alfa-postgres-backup
+    path: deploy
+    compose:
+      - docker-compose.postgres-backup.yml
+    env_file: deploy/.env
+    critical: false
+    notes: |
+      Nightly pg_dump sidecar for the *dedicated* Postgres stack (ROADMAP Phase 3 /
+      audit PG-005). Targets the protected 'alfa-postgres' (or equivalent container)
+      from docker-compose.postgres.yml, not a DB inside the brain compose.
+      Joins the network used by the dedicated DB stack. Backups land on the HDD hub:
+      /mnt/HDDs/Alfa-AI/backups/postgres (override: ALFA_AI_BACKUP_HOST_DIR).
+      Runbook: docs/operations/POSTGRES_BACKUP_RESTORE_111.md.
+      (Retarget container/DSN in sidecar after DB split is active.)
+
+  - name: alfa-aria2
+    path: deploy/aria2
+    compose:
+      - docker-compose.yml
+    env_file: deploy/aria2/.env
+    critical: false
+    notes: |
+      Optional local aria2; bootstrap via aria2-bootstrap.sh or this stack.

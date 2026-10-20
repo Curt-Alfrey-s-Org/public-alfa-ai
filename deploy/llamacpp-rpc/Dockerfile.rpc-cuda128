@@ -1,0 +1,132 @@
+# syntax=docker/dockerfile:1
+# Audit RPC-003 / RPC-004 / backlog #29: CMAKE enables GGML_CUDA + GGML_RPC; LLAMACPP_TAG defaults to b10355 (qwen3next / Pool80).
+# alfa-llamacpp-rpc ? CUDA 12.8 / sm_120-capable llama.cpp build for the
+# ALFa AI Qwen3 frontier tier. Mirrors the Blackwell pattern already used
+# by deploy/petals/Dockerfile.petals-worker.gpu-blackwell:
+#
+#   - nvidia/cuda:12.8.0-* base images (sm_120 support for RTX 5060/5070)
+#   - CMAKE_CUDA_ARCHITECTURES must list every SM used at runtime (Turing 75,
+#     Ampere 80/86, Blackwell 120). Driver backward-compat does not add kernels.
+#
+# The single image runs in two roles, selected by the container's CMD/args:
+#   rpc-server / ggml-rpc-server -> GPU-backed block shard (on orchestrator, gaming-c, gaming-a)
+#   llama-server -> OpenAI-compatible coordinator (on gaming-b gaming-worker-b)
+#
+# Upstream rename (llama.cpp b9824 / PR #25045): cmake target and binary are
+# ggml-rpc-server. We still install /usr/local/bin/rpc-server as a symlink so
+# existing compose command: [rpc-server, ...] keeps working.
+#   https://github.com/ggml-org/llama.cpp/releases/tag/b9824
+#   https://github.com/ggml-org/llama.cpp/blob/master/tools/rpc/README.md
+#
+# Build (from repo root or deploy/llamacpp-rpc as context ? see below):
+#   docker build -f deploy/llamacpp-rpc/Dockerfile.rpc-cuda128 \
+#     -t alfa-llamacpp-rpc:cuda128 deploy/llamacpp-rpc
+#
+# LAN-first on hub (hub):
+#   - Configure dockerd registry-mirrors -> http://hub so
+#     FROM nvidia/cuda layers pull via the hub mirror (not direct Docker Hub).
+#   - Optional: put source in vendor/llama.cpp.tar.gz (see vendor/README.txt)
+#     to skip git clone entirely.
+#   - apt packages in base images still use Ubuntu mirrors (cached after first build).
+#
+# Pin a specific upstream b-tag via --build-arg LLAMACPP_TAG=bXXXX. Default
+# tracks a known-good build where Qwen3-Coder MoE runs cleanly over RPC.
+# Before bumping, sanity-check these open upstream issues (at least one
+# regression should NOT be on your target tag):
+#   https://github.com/ggml-org/llama.cpp/issues/17938
+#   https://github.com/ggml-org/llama.cpp/issues/18882
+#   https://github.com/ggml-org/llama.cpp/issues/19745
+#   https://github.com/ggml-org/llama.cpp/issues/20587
+
+ARG CUDA_VERSION=12.8.0
+ARG UBUNTU_VARIANT=ubuntu22.04
+ARG LLAMACPP_TAG=b10355
+ARG BUILD_JOBS=6
+
+# ?? Builder stage (has nvcc) ???????????????????????????????????????????????
+FROM nvidia/cuda:${CUDA_VERSION}-devel-${UBUNTU_VARIANT} AS builder
+
+ARG LLAMACPP_TAG
+ARG BUILD_JOBS
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        cmake \
+        build-essential \
+        ccache \
+        libcurl4-openssl-dev \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY vendor/ /tmp/llama-vendor/
+
+WORKDIR /src
+# Prefer vendored tarball (hub-staged) so the build does not hit GitHub.
+RUN if [ -f /tmp/llama-vendor/llama.cpp.tar.gz ]; then \
+      mkdir -p llama.cpp \
+      && tar -xzf /tmp/llama-vendor/llama.cpp.tar.gz --strip-components=1 -C llama.cpp; \
+    else \
+      git clone --depth 1 --branch "${LLAMACPP_TAG}" https://github.com/ggml-org/llama.cpp.git; \
+    fi
+
+WORKDIR /src/llama.cpp
+# GGML_CUDA: required for GPU inference.
+# GGML_RPC:  required for ggml-rpc-server + --rpc client modes.
+# GGML_NATIVE: OFF so the build is portable across cluster GPUs.
+# CMAKE_CUDA_ARCHITECTURES: Turing (75), Ampere (80, 86), Blackwell (120).
+#   https://cmake.org/cmake/help/latest/variable/CMAKE_CUDA_ARCHITECTURES.html
+#   https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/compute-capabilities.html
+# Link against CUDA driver stubs (libcuda) so Driver API symbols used by ggml-cuda
+# (e.g. cuMemGetAllocationGranularity, cuMemAddressFree) resolve at link time.
+# Runtime uses the host driver's libcuda inside the GPU container.
+RUN cmake -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_CUDA=ON \
+        -DGGML_RPC=ON \
+        -DGGML_NATIVE=OFF \
+        -DLLAMA_CURL=ON \
+        -DCMAKE_CUDA_ARCHITECTURES="75;80;86;120" \
+        -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -lcuda" \
+        -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -lcuda" \
+    && cmake --build build --config Release -j"${BUILD_JOBS}" \
+        --target llama-server ggml-rpc-server llama-cli
+
+# ?? Runtime stage ??????????????????????????????????????????????????????????
+FROM nvidia/cuda:${CUDA_VERSION}-runtime-${UBUNTU_VARIANT}
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+        libcurl4 \
+        libgomp1 \
+        ca-certificates \
+        tini \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+# Copy the three binaries we care about plus the GGML shared libraries they
+# link against. llama.cpp produces .so files next to the binaries in build/bin.
+# Official binary name since b9824: ggml-rpc-server; rpc-server is a fleet alias.
+COPY --from=builder /src/llama.cpp/build/bin/llama-server /usr/local/bin/
+COPY --from=builder /src/llama.cpp/build/bin/ggml-rpc-server /usr/local/bin/
+COPY --from=builder /src/llama.cpp/build/bin/llama-cli    /usr/local/bin/
+COPY --from=builder /src/llama.cpp/build/bin/*.so         /usr/local/lib/
+RUN ldconfig \
+    && ln -sf ggml-rpc-server /usr/local/bin/rpc-server
+
+# Do not execute GPU binaries here: libcuda.so.1 is supplied by the host
+# NVIDIA driver when the container runs with nvidia-container-toolkit (`--gpus`),
+# not during `docker build` on a CPU-only builder (e.g. hub without GPU in build).
+RUN test -x /usr/local/bin/ggml-rpc-server \
+    && test -x /usr/local/bin/rpc-server \
+    && test -x /usr/local/bin/llama-server \
+    && test -x /usr/local/bin/llama-cli
+
+LABEL org.opencontainers.image.title="alfa-llamacpp-rpc"
+LABEL org.opencontainers.image.description="llama.cpp ggml-rpc-server + llama-server (CUDA 12.8, sm_75/80/86/120)"
+
+# Default to rpc-server alias; docker-compose.rpc-main.yml overrides with llama-server.
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["rpc-server", "--host", "0.0.0.0", "--port", "50052"]
+

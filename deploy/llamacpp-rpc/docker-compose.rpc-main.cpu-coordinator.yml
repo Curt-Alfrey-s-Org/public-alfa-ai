@@ -1,0 +1,19 @@
+# llama.cpp coordinator -- CPU-orchestrated (Code27 + Phase G 35B on orchestrator 3060).
+#
+# Use when deploy/llamacpp-rpc/.env.rpc sets CUDA_VISIBLE_DEVICES= (empty).
+# Pair with docker-compose.rpc-main.code-cache.yml for Code27 CACHE_REUSE.
+#
+# Hides the coordinator GPU so Ollama qwen3.6:35b-a3b can use orchestrator RTX 3060.
+# Code27: omit N_GPU_LAYERS; use code27-cpu overlay (--fit on). No weight blocks on orchestrator CPU.
+#
+# Note: --device RPC[host:port] is not valid on pinned b8552; empty
+# CUDA_VISIBLE_DEVICES is sufficient when RPC_BACKENDS lists remote shards only.
+
+services:
+  llamacpp-server:
+    environment:
+      - CUDA_VISIBLE_DEVICES=
+    deploy:
+      resources:
+        reservations:
+          devices: []

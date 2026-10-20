@@ -1,0 +1,36 @@
+# llama.cpp rpc-server -- gpu-248 GTX 1070 only (:31355).
+#
+# Pascal sm_61 requires alfa-llamacpp-rpc:cuda128-pascal (hub tarball).
+# See docs/DOCKGE_248_OPERATOR.md and .cursor/plans/RAG_248_VM100_SHARD.md.
+#
+# Usage (from deploy/llamacpp-rpc on secondary):
+#   docker compose -f docker-compose.rpc-serversecondary-gpu1070.yml up -d --no-build --force-recreate
+#
+# Sanity check:
+#   nc -zv 127.0.0.1 31355
+#   nc -zv orchestrator 31355
+
+services:
+  llamacpp-rpc-248-gpu1070:
+    image: alfa-llamacpp-rpc:cuda128-pascal
+    pull_policy: never
+    container_name: llamacpp-rpc-248-gpu1070
+    working_dir: /app
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "31355"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - GGML_CUDA_DISABLE_GRAPHS=1
+    network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    restart: "no"

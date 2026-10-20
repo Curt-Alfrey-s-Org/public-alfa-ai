@@ -1,0 +1,196 @@
+# LiteLLM — 35B MoE pool production overlay (pool35 mode)
+#
+# Activated when brain deploy/.env sets LITELLM_CONFIG=litellm_config.pool35.yaml
+# (switch-pool-35b.sh). Omits dead 27B/Petals tiers while 35B RPC pool is active.
+#
+# SSoT: docs/GREV35_35B_OPERATOR.md Phase 5
+
+model_list:
+  - model_name: "fast"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  - model_name: "inline"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "autocomplete"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "chat"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  - model_name: "public-chat"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "app-chat"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "agent"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "code"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "qwen3.6:35b-a3b"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  # -- Universal alias coverage (see docs/POOL_SWITCH_OPERATOR.md) -------------
+  # contracts-bot (and anything else asking for the 27B-named aliases) still
+  # gets a working answer -- routed to the live 35B model -- while pool35 is
+  # the active pool, instead of "Invalid model name".
+  - model_name: "frontier-code"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  - model_name: "qwen3.6-27b"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  - model_name: "operator_internal"
+    litellm_params:
+      model: "openai/qwen3.6-35b-a3b"
+      api_base: "os.environ/LLAMACPP_35B_URL"
+      api_key: "change-me"
+      request_timeout: 600
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "embed"
+    litellm_params:
+      model: "ollama/qwen3-embedding:4b"
+      api_base: "os.environ/EMBED_BASE_URL"
+      request_timeout: 1200
+
+  - model_name: "qwen3-embedding:4b"
+    litellm_params:
+      model: "ollama/qwen3-embedding:4b"
+      api_base: "os.environ/EMBED_BASE_URL"
+      request_timeout: 1200
+
+  - model_name: "rerank"
+    litellm_params:
+      model: "openai/qwen3-reranker-0.6b"
+      api_base: "os.environ/RERANK_BASE_URL"
+      api_key: "change-me"
+      request_timeout: 60
+
+general_settings:
+  master_key: "os.environ/LITELLM_MASTER_KEY"
+  background_health_checks: false
+  health_check_interval: 60
+  enable_health_check_routing: true
+  health_check_ignore_transient_errors: true
+  health_check_skip_disabled_background_models: true
+
+litellm_settings:
+  drop_params: false
+  set_verbose: false
+  request_timeout: 600
+  num_retries: 1
+  cache: true
+  cache_params:
+    type: redis
+    host: os.environ/REDIS_HOST
+    port: os.environ/REDIS_PORT
+    password: os.environ/REDIS_PASSWORD
+    ttl: 3600
+    supported_call_types:
+      - acompletion
+      - aembedding
+
+router_settings:
+  timeout: 900
+  routing_strategy: "latency-based-routing"
+  cooldown_time: 120
+  allowed_fails: 1
+  allowed_fails_policy:
+    TimeoutErrorAllowedFails: 3
+    RateLimitErrorAllowedFails: 2
+    InternalServerErrorAllowedFails: 2
+  retry_policy:
+    RateLimitErrorRetries: 0
+  fallbacks:
+    - fast: []
+    - chat: []
+    - qwen3.6:35b-a3b: []
+    - frontier-code: []
+    - qwen3.6-27b: []
+    - operator_internal: []

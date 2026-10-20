@@ -1,0 +1,68 @@
+# llama.cpp rpc-server -- inference ai-148 only (RTX 5060 8 GB + RTX 3060 12 GB).
+#
+# SECURITY: rpc-server binds 0.0.0.0 -- firewall MUST scope inbound to LAN.
+# See docs/LLAMACPP_RPC_OPERATOR.md section "Security and networking".
+#
+# Two independent rpc-server processes on one Linux host.
+# nvidia-smi on ai-148 (post Jul 2026 GPU swap): index 0 = RTX 5060, index 1 = RTX 3060.
+#   CUDA 0 (RTX 5060) -> :31357  (27B pool shard)
+#   CUDA 1 (RTX 3060) -> :31356  (27B pool shard)
+# See docs/PORT_ASSIGNMENTS.md and .cursor/plans/FOUR_HOST_FRONTIER_POOL.md.
+#
+# Usage (from deploy/llamacpp-rpc on inference):
+#   docker compose -f docker-compose.rpc-server.dual-gpu-148.yml up -d --no-build
+#
+# Sanity check:
+#   nc -zv 127.0.0.1 31356
+#   nc -zv 127.0.0.1 31357
+#
+# Do not use on single-GPU hosts.
+
+services:
+  llamacpp-rpc-148-gpu5060:
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: never
+    container_name: llamacpp-rpc-148-gpu5060
+    working_dir: /app
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "31357"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - GGML_CUDA_DISABLE_GRAPHS=1
+    network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    restart: "no"  # rpc-server crash must fail the readiness gate (no false-green auto-reopen)
+
+  llamacpp-rpc-148-gpu3060:
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: never
+    container_name: llamacpp-rpc-148-gpu3060
+    working_dir: /app
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "31356"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - GGML_CUDA_DISABLE_GRAPHS=1
+    network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: [gpu]
+    restart: "no"  # rpc-server crash must fail the readiness gate (no false-green auto-reopen)

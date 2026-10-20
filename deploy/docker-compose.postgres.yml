@@ -1,0 +1,63 @@
+# Stand-alone Postgres for the apps apps host — referenced by
+# deploy/cluster-members/apps/stacksapps.yml (stack `postgres`).
+#
+# Resolves audit finding CROSS-105-001 (docs/audit/audit-findings.md): previously
+# stacksapps.yml referenced this file but it did not exist, causing
+# apps-105/deploy.sh to fail every critical stack on a clean checkout.
+#
+# Posture intentionally mirrors the brain stack postgres in deploy/docker-compose.yml
+# so cross-host operators see consistent behavior. Tightening work tracked in audit
+# backlog items #22 (pin minor + pg_hba + max_connections, PG-002/004/006), #26
+# (force-fail credentials when env unset, PG-003), and #36 (WAL archiving, PG-005).
+#
+# Environment file (operator-managed, gitignored): deploy/.env.apps
+# Live env: deploy/cluster-members/apps/.env.apps (gitignored on apps host).
+
+name: postgres
+
+services:
+  alfa-postgres:
+    # Pinned to the Debian (glibc) 16 minor, NOT 16.x-alpine: the existing
+    # alfa-postgres-data volume was initialized under Debian/glibc, and switching
+    # to the musl-based alpine image changes the libc collation provider, which can
+    # silently corrupt text indexes (PG-002, audit-findings.md). Stay on the same
+    # libc family for in-place minor bumps. See docs/audit/research/postgresql.md.
+    image: postgres:16.14
+    container_name: alfa-postgres
+    runtime: runc
+    environment:
+      POSTGRES_DB: ${ALFA_POSTGRES_DB:-alfaai}
+      POSTGRES_USER: ${ALFA_POSTGRES_USER:-alfaai}
+      # No weak default password (audit D-014 / PostgreSQL Docker guidance).
+      POSTGRES_PASSWORD: ${ALFA_POSTGRES_PASSWORD:?set ALFA_POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      # Supports bind on fast pool (e.g. hub SSD) or named volume (default apps).
+      # Set ALFA_POSTGRES_DATA_PATH=/mnt/ssd/... in the stack's env to attach existing data dir.
+      - ${ALFA_POSTGRES_DATA_PATH:-alfa-postgres-data}:/var/lib/postgresql/data
+    ports:
+      # Loopback for host-network exporters on hub (hub-*-exporter-brain).
+      # LAN publish: merge docker-compose.postgres.lan-bind.yml (see open_lan_db_for_workers.sh).
+      - "127.0.0.1:${ALFA_AI_POSTGRES_HOST_PORT:-5540}:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ALFA_POSTGRES_USER:-alfaai} -d ${ALFA_POSTGRES_DB:-alfaai}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - shared
+
+volumes:
+  alfa-postgres-data:
+
+# Shared network for DB <-> consumers (api, litellm, workers, site ngnixes).
+# - Default: alfa-shared-network (used on apps apps host; must exist as external).
+# - On hub brain: set ALFA_SHARED_DOCKER_NETWORK=alfa-ai-network in deploy/.env
+#   so dedicated DBs join the same bridge as brain services for DNS resolution
+#   (alfa-postgres / alfa-redis hostnames from DATABASE_URL etc.).
+# The network must be created before `up` of the dedicated stack.
+networks:
+  shared:
+    name: ${ALFA_SHARED_DOCKER_NETWORK:-alfa-shared-network}
+    external: true

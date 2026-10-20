@@ -1,0 +1,57 @@
+# VM100 — llama.cpp rerank sidecar on GTX 1660 Super (:8360).
+# Shares the GPU with alfa-ai-embed-ollama (~3.7 GB just for embed once loaded;
+# real measured headroom with both warm is ~2 GiB of the 6 GiB card — see
+# .cursor/plans/CONTEXT_WINDOW_ASK_AI.md "RAG max-performance pass").
+#
+# Usage:
+#   bash deploy/cluster-members/pool-shard-opt-in/deploy-rerank.sh
+#
+# LiteLLM on hub: RERANK_BASE_URL=http://orchestrator
+
+services:
+  alfa-ai-reranker:
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: never
+    container_name: alfa-ai-reranker
+    restart: unless-stopped
+    working_dir: /app
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${RERANK_PORT:-8360}"
+      - --model
+      - "/models/${RERANK_MODEL_FILE:?RERANK_MODEL_FILE must be set}"
+      - --alias
+      - "${RERANK_MODEL_ALIAS:-qwen3-reranker-0.6b}"
+      # ctx-size doubled alongside --parallel so each of the 2 concurrent
+      # rerank slots keeps the original 512 tokens/request budget. Reranker
+      # weights are small (~200 MB); the extra slot's context buffer is a
+      # few MB, not worth gating behind the tight (~2 GiB) shared headroom.
+      - --ctx-size
+      - "${RERANK_CTX_SIZE:-1024}"
+      - --parallel
+      - "${RERANK_PARALLEL:-2}"
+      - --n-gpu-layers
+      - "999"
+      - --reranking
+    environment:
+      - CUDA_VISIBLE_DEVICES=${RERANK_CUDA_DEVICE:-0}
+    ports:
+      - "${RERANK_PORT:-8360}:${RERANK_PORT:-8360}"
+    volumes:
+      - ${RERANK_MODELS_DIR:-/mnt/cluster/models/downloads/reranker}:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${RERANK_PORT:-8360}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s

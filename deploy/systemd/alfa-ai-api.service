@@ -1,0 +1,22 @@
+[Unit]
+Description=ALFa AI FastAPI API and Web UI (uvicorn)
+# Mutually exclusive with Docker Compose service `alfa-ai-api` on the SAME host.
+# Production brain (hub): use Compose only — keep this unit disabled/stopped.
+# Hybrid host-local API: stop Compose api first; run scripts/preflight_api_ownership.sh
+# systemd-will-manage-api before enable. See docs/DEPLOYMENT_BASELINE.md § Runtime ownership.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ansible
+Group=ansible
+WorkingDirectory=/home/operator/alfa-ai
+EnvironmentFile=-/home/operator/alfa-ai/.env
+ExecStart=/home/operator/alfa-ai/.venv/bin/uvicorn src.api.app:app --host 127.0.0.1 --port 8412 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,33 @@
+gaming-worker-c (gaming-c) -- ONE-TIME SSH setup (then never use this console again)
+=======================================================================
+
+Repo on this PC: C:\Users\Colin\alfa-ai
+
+STEP 1 -- Open Administrator PowerShell (not cmd)
+  Right-click Start -> Windows PowerShell (Admin)
+
+STEP 2 -- Run exactly this one line:
+
+cd C:\Users\Colin\alfa-ai
+powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\cluster-members\gaming-worker-c\CONSOLE-ONE-TIME-SSH.ps1
+
+If files are missing, copy the whole folder from orchestrator:
+  C:/Users/operator\alfa-ai\deploy\cluster-members\gaming-worker-c\
+to:
+  C:\Users\Colin\alfa-ai\deploy\cluster-members\gaming-worker-c\
+
+Required files in that folder:
+  CONSOLE-ONE-TIME-SSH.ps1
+  enable-agent-ssh-from-93.ps1
+  id_ed25519_93_59.pub
+
+Or from SMB (if Colin can read the share):
+  \\hub\temp\cluster_members\gaming-worker-c-59\
+
+STEP 3 -- Back on orchestrator, smoke test (operator PowerShell):
+
+ssh -i $env:USERPROFILE\.ssh\id_ed25519_93_59 -o BatchMode=yes Colin@orchestrator hostname
+
+Should print: QuantumExampleX (or this PC hostname)
+
+More detail: deploy\cluster-members\gaming-worker-c\AGENT_SSH_FROM_93.md

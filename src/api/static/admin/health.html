@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ALFa AI — Worker &amp; brain health</title>
+    <link rel="stylesheet" href="/admin/asset/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>ALFa AI — Worker &amp; brain health</h1>
+      <div class="auth-row">
+        <input
+          type="password"
+          id="token-input"
+          placeholder="ALFA_AI_API_TOKEN (Bearer) if auth enabled"
+          autocomplete="off"
+        />
+        <button type="button" id="save-token">Save token</button>
+        <span id="auth-status" class="meta"></span>
+        <span id="refresh-hint" class="meta">Auto-refresh 10s</span>
+      </div>
+    </div>
+
+    <section class="panel">
+      <h2>Brain services</h2>
+      <p class="meta">From main stack (Ollama, LiteLLM, Postgres, Redis, RPC pool).</p>
+      <div id="brain-services" class="svc-grid"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Cluster hosts</h2>
+      <p class="meta">
+        Infrastructure reachability checks run every refresh from the API container.
+      </p>
+      <div id="cluster-hosts" class="cards"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Worker heartbeats</h2>
+      <p class="meta">Last heartbeat from worker-heartbeat.sh (Redis TTL 90s).</p>
+      <div id="worker-cards" class="cards"></div>
+    </section>
+
+    <script src="/admin/asset/app.js"></script>
+  </body>
+</html>

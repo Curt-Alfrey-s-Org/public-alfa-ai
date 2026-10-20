@@ -1,0 +1,48 @@
+# aria2 (p3terx/aria2-pro) — JSON-RPC on host :6800 for LAN-wide HTTP(S) downloads.
+#
+# Import this stack into Dockge on **every** node that should run a local aria2
+# daemon (hub `hub`, Ubuntu `apps`, Win11 `orchestrator` / `gaming-b` / `gaming-c` / `gaming-a`,
+# etc.). Each host keeps **:6800**; clients use that host’s LAN IP or
+# `http://127.0.0.1:6800/jsonrpc` when `http_fetch.sh` runs on the same machine.
+#
+# Client env (matches `scripts/lib/http_fetch.sh` + `aria2_jsonrpc_fetch.py`):
+#   ARIA2_RPC_URL=http://<this-host>:6800/jsonrpc
+#   ARIA2_RPC_KEY=<same as below>
+#   ARIA2_RPC_DIR=/downloads
+#   ARIA2_HOST_STAGING=<same host path as ARIA2_DOWNLOADS_HOST_PATH below>
+#
+# See README.md in this directory for Dockge steps and per-OS bind examples.
+
+name: alfa-aria2
+
+services:
+  aria2:
+    image: p3terx/aria2-pro:202209060423
+    container_name: alfa-aria2
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-0}
+      - PGID=${PGID:-0}
+      - UMASK_SET=022
+      # Required: no default. Set ARIA2_RPC_KEY in .env beside this file (or the
+      # Dockge stack Environment). Generate with: openssl rand -hex 24
+      - RPC_SECRET=${ARIA2_RPC_KEY:?set ARIA2_RPC_KEY (see deploy/aria2/README.md)}
+      - RPC_PORT=6800
+      - LISTEN_PORT=6888
+      - DISK_CACHE=64M
+      - IPV6_MODE=false
+      - UPDATE_TRACKERS=false
+      - CUSTOM_TRACKER_URL=
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./config:/config
+      # Host directory where finished files land (must match ARIA2_HOST_STAGING
+      # on clients that call JSON-RPC from another host, or the move path when
+      # the client runs on this same host).
+      - ${ARIA2_DOWNLOADS_HOST_PATH:-/mnt/HDDs/Alfa-AI/models/downloads}:/downloads
+    ports:
+      # JSON-RPC — open to LAN (firewall) so peers can queue downloads.
+      - "6800:6800"
+      # BitTorrent (optional; harmless for plain HTTPS jobs).
+      - "6888:6888"
+      - "6888:6888/udp"

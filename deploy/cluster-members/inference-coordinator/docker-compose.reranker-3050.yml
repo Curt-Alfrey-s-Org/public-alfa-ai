@@ -1,0 +1,48 @@
+# inference ai-148 -- llama.cpp rerank sidecar on RTX 3050 (:8360).
+# RTX 3060 (index 1) runs rpc-server :31356 for 27B pool.
+#
+# Usage (on inference):
+#   bash deploy/cluster-members/inference-coordinator/deploy-rag-rerank.sh
+#
+# LiteLLM on hub: RERANK_BASE_URL=http://orchestrator
+
+services:
+  alfa-ai-reranker:
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: never
+    container_name: alfa-ai-reranker
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${RERANK_PORT:-8360}"
+      - --model
+      - "/models/${RERANK_MODEL_FILE:?RERANK_MODEL_FILE must be set}"
+      - --alias
+      - "${RERANK_MODEL_ALIAS:-qwen3-reranker-0.6b}"
+      - --ctx-size
+      - "512"
+      - --n-gpu-layers
+      - "999"
+      - --embedding
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - ${RERANK_MODELS_DIR:-/mnt/cluster/models/downloads/reranker}:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${RERANK_PORT:-8360}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s

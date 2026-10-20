@@ -1,0 +1,303 @@
+# LiteLLM Proxy - unified router for llama.cpp RPC (four-host frontier pool).
+#
+# JULY 2026 PRIMARY WORKING SET — Phase H unified GPU pool (35B MoE retired):
+#   SSoT: .cursor/plans/FOUR_HOST_FRONTIER_POOL.md
+#   - frontier-code / frontier / fast / chat / …: qwen3.6-27b RPC pool; coordinator hub :31360
+#   - qwen3.6:35b-a3b retired as a production default (optional revive: switch-pool-35b.sh)
+#   - frontier alias reserved for future dense ~70-72B GGUF on same RPC pool
+#
+# Env vars (deploy/.env on hub brain):
+#   LLAMACPP_CODE27_URL           http://127.0.0.1:31360/v1  (frontier-code / qwen3.6-27b; brain on hub)
+#   LLAMACPP_35B_URL              unused while 35B is retired (kept for switch-pool-35b.sh)
+#
+# Official Qwen3 lineup (SSoT): https://qwenlm.github.io/blog/qwen3/
+# Hugging Face Transformers Qwen3: https://huggingface.co/docs/transformers/model_doc/qwen3
+# LiteLLM config (api_base os.environ/…): https://docs.litellm.ai/docs/proxy/configs
+#
+# Qwen hybrid thinking (all Qwen + frontier aliases):
+#   precise  = enable_thinking true + thinking_budget (QWEN_THINKING_BUDGET)
+#   instruct = enable_thinking false
+# ALFa AI API injects extra_body on /chat. Direct LiteLLM clients: pass extra_body or
+# enable_thinking / think on the request. Set ALFA_QWEN_CHAT_MODE in deploy/.env.
+
+model_list:
+  # ============================================================================
+  # Compat speed/quality aliases — all route to Qwen3.6-27B RPC (hub:31360)
+  # ============================================================================
+  - model_name: "fast"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+
+  - model_name: "inline"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+
+  - model_name: "autocomplete"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+
+  - model_name: "chat"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+
+  - model_name: "public-chat"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+
+  - model_name: "app-chat"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+
+  - model_name: "agent"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+
+  - model_name: "code"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+
+  # Retired alias name kept for clients that still send it — maps to 27B.
+  - model_name: "qwen3.6:35b-a3b"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+
+  # Retired: qwen3.5:27b on gaming-c (hub archive only — do not add LiteLLM rows).
+  # -- Tier 3a · frontier (Qwen3.6-27B RPC; same backend as frontier-code today) -
+  - model_name: "frontier"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+
+  # Future upgrade — Qwen3.5-122B-A10B via llama.cpp (Chat profile on orchestrator).
+  # Not wired as `frontier` until operator cutover; call alias directly or switch profile.
+  - model_name: "qwen3.5-122b-a10b"
+    litellm_params:
+      model: "openai/qwen3.5-122b-a10b"
+      api_base: "os.environ/LLAMACPP_FRONTIER_URL"
+      api_key: "change-me"
+      timeout: 600
+      stream_timeout: 120
+      request_timeout: 600
+    model_info:
+      supports_reasoning: true
+
+  # -- Tier 3b · frontier-code (Qwen3.6-27B RPC pool; coordinator hub:31360) ---
+  - model_name: "frontier-code"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+
+  # Optional tier 3b upgrade: Qwen3-Coder-Next-80B-A3B (deferred; production = 27B pool on hub:31360).
+  - model_name: "qwen3-coder-next-80b-a3b"
+    litellm_params:
+      model: "openai/qwen3-coder-next-80b-a3b"
+      api_base: "os.environ/LLAMACPP_FRONTIER_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+
+  # G-rev primary code path (inference local server).
+  - model_name: "qwen3.6-27b"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+
+  # Learning-loop L1 judge: do NOT add a LiteLLM row until ALFA_AI_JUDGE_API_BASE
+  # is set on the host (missing os.environ keys can fail proxy startup).
+  # Preferred: brain calls gaming-c Ollama/OpenAI-compat directly via src/llm/judge.py
+  # (ALFA_AI_JUDGE_API_BASE). See docs/operations/JUDGE_INSTALL_59.md.
+
+  # -- Learning-loop L3 draft coder (PR-LL-08) ---------------------------------
+  # NOT production default. Set LLAMACPP_7B_URL on hub after eval + gaming-c serve.
+  # Unset in deploy/.env -> docker-compose.yml defaults it to a closed local port
+  # (http://127.0.0.1:9/v1) so this row fails fast instead of having no api_base.
+  # Docs: docs/operations/ALFA_7B_SERVE_ALONGSIDE_27B.md
+  - model_name: "alfa-coder-draft"
+    litellm_params:
+      model: "openai/qwen2.5-coder-7b"
+      api_base: "os.environ/LLAMACPP_7B_URL"
+      api_key: "change-me"
+      timeout: 600
+      stream_timeout: 120
+      request_timeout: 600
+    model_info:
+      description: "Home 7B QLoRA standalone on gaming-c:8470 when LLAMACPP_7B_URL set"
+      supports_reasoning: false
+      disable_background_health_check: true
+
+  # -- Embeddings (qwen3-embedding:4b via CPU Ollama on rag RAG host :11435) --
+  # Primary always-on path (Phase E1). gaming-c gaming-worker-c remains OPPORTUNISTIC fallback
+  # if EMBED_BASE_URL is repointed during maintenance.
+  - model_name: "embed"
+    litellm_params:
+      model: "ollama/qwen3-embedding:4b"
+      api_base: "os.environ/EMBED_BASE_URL"
+      request_timeout: 1200
+
+  - model_name: "qwen3-embedding:4b"
+    litellm_params:
+      model: "ollama/qwen3-embedding:4b"
+      api_base: "os.environ/EMBED_BASE_URL"
+      request_timeout: 1200
+
+  # -- operator_internal (trust zone) — same 27B pool while 35B is retired ------
+  - model_name: "operator_internal"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 600
+
+  # -- rag reranker sidecar (Qwen3-Reranker-0.6B via CPU llama-server) --
+  # Always-on Phase E1. RERANK_BASE_URL=http://orchestrator after
+  # deploy/cluster-members/rag-host/deploy-rag-cpu.sh (inference RAG retired 2026-07-18).
+  - model_name: "rerank"
+    litellm_params:
+      model: "openai/qwen3-reranker-0.6b"
+      api_base: "os.environ/RERANK_BASE_URL"
+      api_key: "change-me"
+      request_timeout: 60
+
+  # OPPORTUNISTIC: gaming-b gaming-worker-b cold-standby embed only (not wired in LiteLLM).
+
+general_settings:
+  master_key: "os.environ/LITELLM_MASTER_KEY"
+
+  # --- Health-check-driven routing for partial-cluster operation --------------
+  # Background loop pings every deployment every health_check_interval seconds.
+  # Any deployment that fails its check is removed from the routing pool
+  # *before* user requests can land on it -- proactive, not reactive. Combined
+  # with the cooldown/fallback config in router_settings, this makes routing
+  # robust against the orchestrator/gaming-c/gaming-b-offline failure mode observed during the
+  # per-host build phase (silent-dropping or RST-rejecting siblings poison the
+  # LB fan-out and exhaust the retry budget before reaching the healthy hub).
+  # As fleet hosts come online they self-heal via the next health-check cycle.
+  # See https://docs.litellm.ai/docs/proxy/health_check_routing
+  background_health_checks: true
+  health_check_interval: 60                    # seconds between full cycles
+  enable_health_check_routing: true            # actually route away from unhealthy
+  health_check_ignore_transient_errors: true   # 429/408 don't poison routing
+  # One worker runs the health-check cycle; the rest read the shared Redis result.
+  # Avoids N-worker probe fan-out against the single-client llama.cpp RPC pool.
+  # Requires LiteLLM >= v1.90 (image pinned in docker-compose.yml).
+  # See https://docs.litellm.ai/docs/proxy/shared_health_check
+  use_shared_health_check: true
+
+litellm_settings:
+  # Keep enable_thinking / chat_template_kwargs / think from ALFa API and clients.
+  drop_params: false
+  set_verbose: false
+  request_timeout: 600
+  num_retries: 1
+  # Phase F1: Redis response cache (alfa-ai-redis on the brain compose network).
+  cache: true
+  cache_params:
+    type: redis
+    host: os.environ/REDIS_HOST
+    port: os.environ/REDIS_PORT
+    password: os.environ/REDIS_PASSWORD
+    ttl: 3600
+    supported_call_types:
+      - acompletion
+      - aembedding
+
+router_settings:
+  # Whole-call cap at router level (docs.litellm.ai/docs/proxy/timeout).
+  timeout: 900
+  # Redact internal model_group/fallback alias names from client-visible error
+  # bodies (public-surface-security.mdc). Requires LiteLLM >= v1.90.
+  # See https://docs.litellm.ai/release_notes/v1.90.0/v1-90-0
+  expose_router_debug_in_errors: false
+  # Latency-based routing prefers the backend that responded fastest recently.
+  # 2026-06-17: each CPU chat alias now has a SINGLE primary deployment (orchestrator MoE
+  # for speed aliases, gaming-c dense for quality aliases); cross-host + frontier
+  # resilience is handled by `fallbacks` below, not by duplicate model_name rows.
+  # Per LiteLLM docs (Routing), routing_strategy must live under `router_settings:`
+  # — under `litellm_settings:` it is silently ignored (round-robin fallback).
+  # Applies to multi-deployment names when present. Single-row aliases use that deployment directly.
+  # See https://docs.litellm.ai/docs/routing
+  routing_strategy: "latency-based-routing"
+
+  # --- Fast-fail cooldowns for partial-cluster operation -----------------------
+  # If a primary CPU chat host (orchestrator or gaming-c) is down or warming a model, the
+  # default allowed_fails=3 would let requests hang on the dead host before
+  # sidelining. With allowed_fails=1, cooldown triggers when updated_fails > 1
+  # (2nd failure in window), not on the first fail (LiteLLM routing docs).
+  # See https://docs.litellm.ai/docs/routing#advanced---cooldown-deployments
+  cooldown_time: 120          # seconds to sideline a deployment after failure
+                              # (must be > general_settings.health_check_interval per LiteLLM docs)
+  allowed_fails: 1            # cooldown when consecutive fails exceed this count
+
+  allowed_fails_policy:
+    TimeoutErrorAllowedFails: 3
+    RateLimitErrorAllowedFails: 2
+    InternalServerErrorAllowedFails: 2
+
+  retry_policy:
+    RateLimitErrorRetries: 0
+
+  # --- Fallbacks: graceful degradation (G-rev) -----------------------------
+  # Speed aliases fall back to frontier-code (hub :31360).
+  # In inference production use litellm_config.inference.yaml (no speed-tier rows).
+  fallbacks:
+    - fast: ["frontier-code"]
+    - inline: ["frontier-code"]
+    - autocomplete: ["frontier-code"]
+    - chat: ["frontier-code"]
+    - public-chat: ["frontier-code"]
+    - app-chat: ["frontier-code"]
+    - agent: ["frontier-code"]
+    - code: ["frontier-code"]
+    - operator_internal: ["frontier-code"]
+    - frontier: ["frontier-code"]
+    - frontier-code: []
+    # Optional when 122B Chat profile is loaded:
+    # - frontier: ["qwen3.5-122b-a10b"]

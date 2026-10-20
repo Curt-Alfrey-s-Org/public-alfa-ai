@@ -1,0 +1,55 @@
+# G-rev27 production: dual-GPU layer split + CPU spill on inference (Qwen3.6-27B, no RPC).
+#
+# Official: https://github.com/ggml-org/llama.cpp/blob/master/docs/multi-gpu.md
+#   -sm layer -ts 1,2; N_GPU_LAYERS from phase-1 --fit (required --fit cannot trim when -ts set).
+
+services:
+  llamacpp-server:
+    container_name: llamacpp-server-148-local
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${MAIN_PORT:-31358}"
+      - --model
+      - "/models/${MODEL_FILE:-Qwen3.6-27B-Q4_K_M.gguf}"
+      - --alias
+      - "${MODEL_ALIAS:-qwen3.6-27b}"
+      - --split-mode
+      - layer
+      - --tensor-split
+      - "${TENSOR_SPLIT:-1,2}"
+      - --n-gpu-layers
+      - "${N_GPU_LAYERS:?N_GPU_LAYERS must be set from phase-1 fit parse}"
+      - --ctx-size
+      - "${CTX_SIZE:?CTX_SIZE must be set from phase-1 fit parse}"
+      - --cache-type-k
+      - "${CACHE_TYPE_K:-q8_0}"
+      - --cache-type-v
+      - "${CACHE_TYPE_V:-q8_0}"
+      - --flash-attn
+      - "on"
+      - --no-warmup
+      - --jinja
+      - --chat-template
+      - "${CHAT_TEMPLATE:-chatml}"
+      - --parallel
+      - "${PARALLEL:-1}"
+      - --threads
+      - "${THREADS:-12}"
+      - --threads-http
+      - "${THREADS_HTTP:-8}"
+      - --slot-save-path
+      - "/slot-cache"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=${GPU_UUIDS:-GPU-791ef00b-66b5-32ee-5487-4dcc02a37bcd,GPU-4a1dad62-4955-7c2f-90b0-219bdd606cb7}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids:
+                - "${GPU3050_UUID:-GPU-791ef00b-66b5-32ee-5487-4dcc02a37bcd}"
+                - "${GPU3060_UUID:-GPU-4a1dad62-4955-7c2f-90b0-219bdd606cb7}"
+              capabilities: [gpu]

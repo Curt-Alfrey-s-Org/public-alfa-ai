@@ -1,0 +1,58 @@
+# G-rev27 production: dual-GPU layer split + CPU spill on inference (Qwen3.6-27B, no RPC).
+#
+# nvidia-smi: index 0 = RTX 3050 6 GB, index 1 = RTX 3060 12 GB.
+# Official: https://github.com/ggml-org/llama.cpp/blob/master/docs/multi-gpu.md
+#   -sm layer -ts 1,2 (6:12 VRAM ratio); omit -ngl and -c so --fit auto-sizes + CPU spill.
+#
+# Usage (inference): deploy-grev27-local.sh phase 2 (after 3060 preflight passes).
+
+services:
+  llamacpp-server:
+    container_name: llamacpp-server-148-local
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${MAIN_PORT:-31358}"
+      - --model
+      - "/models/${MODEL_FILE:-Qwen3.6-27B-Q4_K_M.gguf}"
+      - --alias
+      - "${MODEL_ALIAS:-qwen3.6-27b}"
+      - --split-mode
+      - layer
+      - --tensor-split
+      - "${TENSOR_SPLIT:-1,2}"
+      - --cache-type-k
+      - "${CACHE_TYPE_K:-q8_0}"
+      - --cache-type-v
+      - "${CACHE_TYPE_V:-q8_0}"
+      - --flash-attn
+      - "on"
+      - --fit
+      - on
+      - --fit-target
+      - "${FIT_TARGET:-512,1536}"
+      - --fit-ctx
+      - "${FIT_CTX:-2048}"
+      - --no-warmup
+      - --jinja
+      - --chat-template
+      - "${CHAT_TEMPLATE:-chatml}"
+      - --parallel
+      - "${PARALLEL:-1}"
+      - --threads
+      - "${THREADS:-12}"
+      - --threads-http
+      - "${THREADS_HTTP:-8}"
+      - --slot-save-path
+      - "/slot-cache"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0,1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0", "1"]
+              capabilities: [gpu]

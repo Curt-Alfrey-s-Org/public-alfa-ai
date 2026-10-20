@@ -1,0 +1,27 @@
+# rag -- CPU Ollama embed sidecar (:11435). Dedicated RAG host; see
+# docs/RAG_148_TO_110_MIGRATION.md.
+#
+# Usage (on rag):
+#   bash deploy/cluster-members/rag-host/deploy-rag-cpu.sh
+#
+# After cutover: EMBED_BASE_URL=http://orchestrator
+
+services:
+  alfa-ai-embed-ollama:
+    image: ollama/ollama:0.35.1
+    container_name: alfa-ai-embed-ollama
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_NUM_GPU=0
+      - OLLAMA_KEEP_ALIVE=-1
+    volumes:
+      - ${OLLAMA_EMBED_MODELS_DIR:-/mnt/cluster/models/ollama/embed-qwen3-4b}:/root/.ollama
+    ports:
+      - "11435:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s

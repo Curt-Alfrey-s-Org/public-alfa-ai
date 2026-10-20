@@ -1,0 +1,9 @@
+[Unit]
+Description=ALFa NFS hub stale-mount recovery (/mnt/cluster)
+Documentation=file://@ALFA_REPO_DIR@/docs/CLUSTER_SHARED_STORAGE.md
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=ALFA_REPO_DIR=@ALFA_REPO_DIR@
+ExecStart=/bin/bash @ALFA_REPO_DIR@/scripts/watch_nfs_hub_mount.sh

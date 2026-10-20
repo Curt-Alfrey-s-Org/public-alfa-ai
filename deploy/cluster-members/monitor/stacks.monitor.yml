@@ -1,0 +1,8 @@
+# Stack symlinks for Dockge visibility on VM107 (monitoring).
+
+version: 1
+host: monitor
+
+stack_links:
+  - name: monitoring
+    path: /home/operator/monitoring

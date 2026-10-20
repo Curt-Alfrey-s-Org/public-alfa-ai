@@ -1,0 +1,34 @@
+# llama.cpp rpc-server -- inference RTX 3060 only (:31356).
+#
+# Prefer docker-compose.rpc-server.dual-gpu-148.yml (3060 + 5060 pool shards).
+# nvidia-smi: index 1 = RTX 3060 LHR 12 GB (index 0 = RTX 5060 after Jul 2026 swap).
+
+services:
+  llamacpp-rpc-148-gpu3060:
+    build:
+      context: .
+      dockerfile: Dockerfile.rpc-cuda128
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: build
+    container_name: llamacpp-rpc-148-gpu3060
+    working_dir: /app
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "31356"
+    environment:
+      # device_ids ["1"] passes host GPU 1 only; inside the container it is CUDA0.
+      - CUDA_VISIBLE_DEVICES=0
+      # Mitigate RPC CUDA graph warmup wedge (#20315); env in ggml-cuda/common.cuh.
+      - GGML_CUDA_DISABLE_GRAPHS=1
+    network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: [gpu]
+    restart: "no"  # rpc-server crash must fail the readiness gate (no false-green auto-reopen)

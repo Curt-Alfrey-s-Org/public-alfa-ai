@@ -1,0 +1,86 @@
+# llama.cpp llama-server — coordinator / OpenAI-compatible HTTP endpoint.
+#
+# SECURITY: HTTP API binds 0.0.0.0 — restrict MAIN_PORT (default 31360) to LAN /
+# LiteLLM brain only. See docs/LLAMACPP_RPC_OPERATOR.md § "Security and networking".
+# Runs on orchestrator (coordinator; Code27 uses CPU overlay -- see cpu-coordinator.yml).
+# Serves pooled Qwen3 frontier GGUFs, sharding across rpc-server backends in RPC_BACKENDS.
+#
+# Usage (on orchestrator):
+#   cd deploy/llamacpp-rpc
+#   Create deploy/llamacpp-rpc/.env.rpc on this host (gitignored) before compose up.
+#   docker compose --env-file .env.rpc -f docker-compose.rpc-main.yml \
+#     -f docker-compose.rpc-main.wsl-93.yml up -d
+#
+# Quick verify:
+#   curl http://orchestrator/v1/models
+
+services:
+  llamacpp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.rpc-cuda128
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: build
+    container_name: llamacpp-server
+    working_dir: /app
+    command:
+      # b7186 llama-server parses --host / --port as separate argv (not --host=...).
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${MAIN_PORT:-31360}"
+      - --model
+      - "/models/${MODEL_FILE:-Qwen3-Coder-Next-Q4_K_M/Qwen3-Coder-Next-Q4_K_M-00001-of-00004.gguf}"
+      - --alias
+      - "${MODEL_ALIAS:-qwen3-coder-next-80b-a3b}"
+      - --ctx-size
+      - "${CTX_SIZE:-32768}"
+      - --cache-type-k
+      - "${CACHE_TYPE_K:-q8_0}"
+      - --cache-type-v
+      - "${CACHE_TYPE_V:-q8_0}"
+      - --n-gpu-layers
+      - "${N_GPU_LAYERS:-999}"
+      - --rpc
+      - "${RPC_BACKENDS:?RPC_BACKENDS must be set in .env.rpc (e.g. orchestrator,orchestrator,hub)}"
+      - --jinja
+      - --chat-template
+      - "${CHAT_TEMPLATE:-chatml}"
+      - --parallel
+      - "${PARALLEL:-1}"
+      - --threads-http
+      - "${THREADS_HTTP:-16}"
+      # Optional KV shifting reuse (dense models only). Omit for Qwen3.5 hybrid Chat
+      # profile -- llama.cpp #18497: --cache-reuse ineffective on recurrent layers.
+      # Prompt-cache save aborts on RPC-owned KV (upstream #26128); keep 0.
+      - --cache-ram
+      - "${CACHE_RAM:-0}"
+      - --slot-save-path
+      - "/slot-cache"
+    environment:
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      # OpenAI-style API key the coordinator accepts. Must match LiteLLM's
+      # frontier-code `api_key` in deploy/litellm_config.yaml.
+      - LLAMA_API_KEY=${LLAMA_API_KEY:-change-me}
+    volumes:
+      # Mount a directory containing the GGUF shards. Can be a local folder
+      # or an NFS mount from hub's shared model cache. See
+      # docs/CLUSTER_SHARED_STORAGE.md and docs/LLAMACPP_RPC_OPERATOR.md.
+      - ${MODELS_DIR:-./models}:/models:ro
+      - ${SLOT_CACHE_DIR:-./slot-cache}:/slot-cache
+    network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${MAIN_PORT:-31360}/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 600s

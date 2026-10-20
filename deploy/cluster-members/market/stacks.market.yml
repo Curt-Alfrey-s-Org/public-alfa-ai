@@ -1,0 +1,9 @@
+# Stack symlinks for Dockge visibility on VM102 (MARKET).
+# App ownership stays in market-pie5-bot repo; this only links into /opt/stacks.
+
+version: 1
+host: market
+
+stack_links:
+  - name: market-pie5-bot
+    path: /home/operator/market-pie5-bot

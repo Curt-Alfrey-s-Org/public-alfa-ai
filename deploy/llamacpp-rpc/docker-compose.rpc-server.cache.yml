@@ -1,0 +1,17 @@
+# Optional overlay: rpc-server local tensor cache (-c per tools/rpc/README.md).
+# Speeds Code27 reloads by avoiding full LAN re-upload of 27B weights.
+#
+# Usage:
+#   docker compose -f docker-compose.rpc-server.yml -f docker-compose.rpc-server.cache.yml ...
+
+services:
+  llamacpp-rpc-server:
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${RPC_PORT:-31350}"
+      - -c
+    volumes:
+      - ${RPC_CACHE_DIR:-./rpc-cache}:/root/.cache/llama.cpp/rpc

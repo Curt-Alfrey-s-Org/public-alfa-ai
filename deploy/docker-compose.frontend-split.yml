@@ -1,0 +1,56 @@
+# alfa-ai-frontend split override.
+#
+# Opt-in overlay that replaces the inlined Vite build inside `alfa-ai-api`
+# with a dedicated static-assets container. Merge on top of the main compose:
+#
+#   docker compose \
+#       -f docker-compose.yml \
+#       -f docker-compose.frontend-split.yml \
+#       up -d --build
+#
+# The alfa-ai-nginx upstream must be updated to route /alfa-ai/* to
+# alfa-ai-frontend:80 instead of alfa-ai-api:8000 (see nginx/conf.d).
+#
+# Why split:
+#   - Python dep installs (~90s) are bypassed on frontend-only changes.
+#   - npm install (~60s) is bypassed on API-only changes.
+#   - The frontend image is trivially small (~20 MB) and can be pulled from
+#     the hub registry mirror.
+#
+# Docs:
+#   https://docs.docker.com/compose/multiple-compose-files/merge/
+
+services:
+  alfa-ai-frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../deploy/Dockerfile.frontend
+      args:
+        BUILD_HASH: ${BUILD_HASH:-unknown}
+    image: alfa-ai-frontend:${ALFA_AI_FRONTEND_IMAGE_TAG:-local}
+    pull_policy: build
+    container_name: alfa-ai-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${ALFA_AI_FRONTEND_HOST_PORT:-8091}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - alfa-ai-network
+      - tunnel_network
+
+  # With the split, the Python image no longer needs the Vite dist; point the
+  # API at the split-aware Dockerfile when that variant is ready. Until then,
+  # this is a no-op — the frontend container just shadows the in-API copy.
+  alfa-ai-api:
+    depends_on:
+      alfa-ai-frontend:
+        condition: service_healthy
+      alfa-ai-postgres:
+        condition: service_healthy
+      alfa-ai-redis:
+        condition: service_healthy

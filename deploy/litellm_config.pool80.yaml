@@ -1,0 +1,62 @@
+# LiteLLM — 80B Coder-Next exclusive overlay (pool80 mode)
+#
+# Activated when brain deploy/.env sets LITELLM_CONFIG=litellm_config.pool80.yaml
+# (switch-pool-80b.sh). Exclusive Qwen3-Coder-Next Q5_K_M on coordinator :31360.
+#
+# SSoT: docs/GREV80_80B_OPERATOR.md
+# Official GGUF: https://huggingface.co/Qwen/Qwen3-Coder-Next-GGUF
+
+model_list:
+  - model_name: "frontier-code"
+    litellm_params:
+      model: "openai/qwen3-coder-next-80b-a3b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1800
+      stream_timeout: 180
+      request_timeout: 1800
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  - model_name: "qwen3-coder-next-80b-a3b"
+    litellm_params:
+      model: "openai/qwen3-coder-next-80b-a3b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1800
+      stream_timeout: 180
+      request_timeout: 1800
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  # During exclusive 80B, map chat alias to the loaded coder so picker does not 404.
+  - model_name: "frontier"
+    litellm_params:
+      model: "openai/qwen3-coder-next-80b-a3b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1800
+      stream_timeout: 180
+      request_timeout: 1800
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+litellm_settings:
+  drop_params: false
+  set_verbose: false
+  request_timeout: 1800
+  num_retries: 1
+
+router_settings:
+  timeout: 1800
+  expose_router_debug_in_errors: false
+  routing_strategy: "simple-shuffle"
+  cooldown_time: 120
+  allowed_fails: 1
+  fallbacks:
+    - frontier-code: []
+    - qwen3-coder-next-80b-a3b: []
+    - frontier: []

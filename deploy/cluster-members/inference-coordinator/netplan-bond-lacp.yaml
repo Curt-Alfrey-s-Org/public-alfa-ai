@@ -1,0 +1,43 @@
+# ai-148: LACP bond (802.3ad) -- eno1 + USB NIC -> bond0 @ orchestrator/24
+#
+# Requires AXE300 (or other switch) IEEE 802.3ad LAG on the two switch ports cabled
+# to eno1 and the USB adapter. One LAG group = one host; retire .147 data-plane IP.
+#
+# Ref: https://netplan.readthedocs.io/en/stable/netplan-yaml/ (bond mode 802.3ad)
+# Ref: https://docs.kernel.org/networking/bonding.html
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eno1:
+      dhcp4: no
+      dhcp6: no
+      match:
+        macaddress: b4:2e:99:38:2f:c9
+      set-name: eno1
+    nic_usb:
+      dhcp4: no
+      dhcp6: no
+      match:
+        macaddress: 7c:c2:c6:46:ec:53
+      set-name: nic_usb
+  bonds:
+    bond0:
+      interfaces:
+        - eno1
+        - nic_usb
+      parameters:
+        mode: 802.3ad
+        lacp-rate: fast
+        mii-monitor-interval: 100
+        transmit-hash-policy: layer3+4
+        min-links: 1
+      dhcp4: no
+      addresses:
+        - orchestrator/24
+      routes:
+        - to: default
+          via: orchestrator
+      nameservers:
+        addresses:
+          - orchestrator

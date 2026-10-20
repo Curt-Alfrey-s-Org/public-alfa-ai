@@ -1,0 +1,49 @@
+{
+  "name": "@alfa-ai/chat-widget",
+  "version": "1.0.5",
+  "description": "Canonical ALFa AI chat window (dock + panel) shared by every consumer app. Single source of truth owned by alfa-ai.",
+  "license": "UNLICENSED",
+  "private": false,
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./styles.css": "./dist/styles.css",
+    "./avatar": "./assets/alfa-ai-avatar.png"
+  },
+  "files": [
+    "dist",
+    "assets",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0"
+  },
+  "publishConfig": {
+    "registry": "http://hub"
+  }
+}

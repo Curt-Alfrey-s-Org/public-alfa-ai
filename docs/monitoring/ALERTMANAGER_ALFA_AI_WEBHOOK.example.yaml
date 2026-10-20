@@ -1,0 +1,38 @@
+# Drop into monitoring repo alertmanager.yml (Phase 0).
+# Requires ALFA_AI_ALERT_WEBHOOK_TOKEN on brain deploy/.env (same value as credentials below).
+#
+# Spec: https://prometheus.io/docs/alerting/latest/configuration/
+
+receivers:
+  - name: "null"
+    # keep for soak tests
+
+  - name: email-and-alfa-ai
+    email_configs:
+      - to: "operator@example.com"
+        send_resolved: true
+        # smtp_* from monitoring .env (operator-owned)
+    webhook_configs:
+      - url: "http://hub/alfa-ai/api/internal/alerts"
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials_file: "/etc/alertmanager/secrets/alfa_ai_webhook_token"
+
+route:
+  receiver: email-and-alfa-ai
+  group_by: ["alertname", "cluster", "service"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  routes:
+    - match:
+        alertname: Watchdog
+      receiver: "null"
+
+# Example rule names expected by alfa-ai playbooks (monitoring repo prometheus/rules/):
+#   - alert: AlfaAiBrainHealthDown
+#   - alert: LiteLLMProbeFailed
+#   - alert: AlfaAiPostgresBackupStale

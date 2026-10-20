@@ -1,0 +1,11 @@
+services:
+  alfa-ai-worker:
+    extends:
+      file: ../_common/docker-compose.agent-worker.remote.yml
+      service: alfa-ai-worker
+    volumes:
+      - alfa-ai-agent-workspace:/workspace
+      - /home/operator/market-pie5-bot:/workspace/market-pie5-bot:ro
+
+volumes:
+  alfa-ai-agent-workspace:

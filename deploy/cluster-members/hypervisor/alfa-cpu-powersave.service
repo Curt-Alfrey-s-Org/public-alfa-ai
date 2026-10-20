@@ -1,0 +1,13 @@
+[Unit]
+Description=ALFa intel_pstate powersave (HWP EPP)
+Documentation=https://docs.kernel.org/admin-guide/pm/intel_pstate.html
+After=sysinit.target
+ConditionPathExists=/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/alfa-cpu-powersave.sh
+
+[Install]
+WantedBy=multi-user.target

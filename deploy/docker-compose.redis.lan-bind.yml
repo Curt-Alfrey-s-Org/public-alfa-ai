@@ -1,0 +1,14 @@
+# Optional merge on hub when remote agent workers need LAN Redis.
+# Always pair with docker-compose.redis.yml (loopback 127.0.0.1:6390 for exporters).
+#
+# Usage:
+#   docker compose -f docker-compose.redis.yml -f docker-compose.redis.lan-bind.yml up -d
+#
+# Env: ALFA_AI_REDIS_LAN_BIND (default hub), ALFA_AI_REDIS_HOST_PORT (6390)
+
+name: redis
+
+services:
+  alfa-redis:
+    ports:
+      - "${ALFA_AI_REDIS_LAN_BIND:-hub}:${ALFA_AI_REDIS_HOST_PORT:-6390}:6379"

@@ -1,0 +1,23 @@
+# ALFa AI LACT preset for inference (ai-148) -- RTX 5060 + RTX 3060
+# GPU IDs from lact cli list-gpus; install script remaps if PCI differs.
+# Config reference: https://github.com/ilya-zlobintsev/LACT/blob/master/docs/CONFIG.md
+daemon:
+  log_level: info
+  admin_group: sudo
+  tcp_listen_address: orchestrator
+
+gpus:
+  10DE:2D05-1043:8A15-0000:01:00.0:
+    gpu_clock_offsets:
+      0: 150
+    mem_clock_offsets:
+      0: 400
+    power_cap: 155.0
+    power_mizer_mode: PreferMaximumPerformance
+  10DE:2504-1462:397B-0000:02:00.0:
+    gpu_clock_offsets:
+      0: 197
+    mem_clock_offsets:
+      0: 574
+    power_cap: 170.0
+    power_mizer_mode: PreferMaximumPerformance

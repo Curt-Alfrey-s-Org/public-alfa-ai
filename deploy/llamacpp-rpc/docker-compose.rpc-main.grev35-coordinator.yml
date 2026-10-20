@@ -1,0 +1,50 @@
+# G-rev2: 35B MoE RPC coordinator on hub CPU (:31360).
+#
+# Shards: hub:31353, apps:31354, orchestrator:31350. CPU spill on hub + orchestrator RAM.
+# Omit --n-gpu-layers so --fit on can size offload (official multi-gpu.md).
+# See https://github.com/ggml-org/llama.cpp/blob/master/tools/rpc/README.md
+#
+# Pair with docker-compose.rpc-main.cpu-coordinator.yml (empty CUDA_VISIBLE_DEVICES).
+
+services:
+  llamacpp-server:
+    container_name: llamacpp-server-111-grev35
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${MAIN_PORT:-31360}"
+      - --model
+      - "/models/${MODEL_FILE:-Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf}"
+      - --alias
+      - "${MODEL_ALIAS:-qwen3.6-35b-a3b}"
+      - --ctx-size
+      - "${CTX_SIZE:-4096}"
+      - --cache-type-k
+      - "${CACHE_TYPE_K:-q8_0}"
+      - --cache-type-v
+      - "${CACHE_TYPE_V:-q8_0}"
+      - --flash-attn
+      - "on"
+      - --fit
+      - on
+      - --fit-target
+      - "${FIT_TARGET:-2048,1024,512}"
+      - --fit-ctx
+      - "${FIT_CTX:-4096}"
+      - --no-warmup
+      - --rpc
+      - "${RPC_BACKENDS:?RPC_BACKENDS must be set in .env.rpc}"
+      - --jinja
+      - --chat-template
+      - "${CHAT_TEMPLATE:-chatml}"
+      - --parallel
+      - "${PARALLEL:-1}"
+      - --threads-http
+      - "${THREADS_HTTP:-16}"
+      # Prompt-cache save aborts on RPC-owned KV (upstream #26128); keep 0.
+      - --cache-ram
+      - "${CACHE_RAM:-0}"
+      - --slot-save-path
+      - "/slot-cache"

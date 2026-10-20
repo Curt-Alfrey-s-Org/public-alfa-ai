@@ -1,0 +1,16 @@
+# ALFa AI LACT preset for pool-opt-in (ALFA-AI) -- GTX 1660 Super
+# GPU ID from lact cli list-gpus; install script remaps if PCI differs.
+# Config reference: https://github.com/ilya-zlobintsev/LACT/blob/master/docs/CONFIG.md
+daemon:
+  log_level: info
+  admin_group: sudo
+  tcp_listen_address: orchestrator
+
+gpus:
+  10DE:21C4-1043:872C-0000:01:00.0:
+    gpu_clock_offsets:
+      0: 100
+    mem_clock_offsets:
+      0: 400
+    power_cap: 140.0
+    power_mizer_mode: PreferMaximumPerformance

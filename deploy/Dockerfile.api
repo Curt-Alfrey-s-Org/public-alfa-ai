@@ -1,0 +1,64 @@
+# syntax=docker/dockerfile:1
+# ALFa AI application image — Vite SPA ( /alfa-ai/* ) + FastAPI. Build context = repo root (.. from deploy/).
+FROM node:22-bookworm-slim AS frontend-build
+WORKDIR /web
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# Python 3.13 (3.12 is security-only per devguide.python.org/versions).
+FROM python:3.13-slim-bookworm
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_INPUT=1 \
+    PIP_DEFAULT_TIMEOUT=300
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    ripgrep \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
+
+COPY --from=frontend-build /web/dist /app/frontend/dist
+COPY src/ /app/src/
+COPY skills/ /app/skills/
+COPY deploy/incident-playbooks/ /app/deploy/incident-playbooks/
+COPY deploy/cluster-members/_common/wait-http.sh /app/deploy/cluster-members/_common/wait-http.sh
+COPY deploy/cluster-members/_common/wait-brain-health.sh /app/deploy/cluster-members/_common/wait-brain-health.sh
+COPY deploy/cluster-members/_common/wait-litellm-liveliness.sh /app/deploy/cluster-members/_common/wait-litellm-liveliness.sh
+# inference shard lists for Admin Health catalog (active.env mounted at runtime when present).
+COPY deploy/llamacpp-rpc/inference-shards.env /app/deploy/llamacpp-rpc/inference-shards.env
+COPY deploy/llamacpp-rpc/inference-shards.core.env /app/deploy/llamacpp-rpc/inference-shards.core.env
+COPY deploy/llamacpp-rpc/inference-shards.gaming.env /app/deploy/llamacpp-rpc/inference-shards.gaming.env
+# Operator maintenance (reset admin JWT login password); see scripts/reset_admin_password.py header.
+COPY scripts/reset_admin_password.py /app/scripts/reset_admin_password.py
+COPY scripts/inspect_agent_run.py /app/scripts/inspect_agent_run.py
+
+ARG BUILD_HASH=local
+LABEL org.opencontainers.image.revision="${BUILD_HASH}"
+RUN printf '%s' "${BUILD_HASH}" > /app/.build-hash
+
+EXPOSE 8000
+
+# Trust only loopback + typical Docker private ranges for X-Forwarded-* (Uvicorn
+# deployment: never use * — spoofing risk). Override via FORWARDED_ALLOW_IPS for
+# unusual proxy topologies. See https://uvicorn.dev/deployment/
+ENV FORWARDED_ALLOW_IPS=127.0.0.1,10.0.0.0/8,172.16.0.0/12
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8000/health >/dev/null || exit 1
+
+# Shell form so FORWARDED_ALLOW_IPS is expandable at container start.
+CMD uvicorn src.api.app:app \
+    --host 0.0.0.0 --port 8000 \
+    --proxy-headers \
+    --forwarded-allow-ips="${FORWARDED_ALLOW_IPS}"

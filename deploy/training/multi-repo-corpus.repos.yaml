@@ -1,0 +1,147 @@
+# Fleet completion corpus sources for 7B QLoRA.
+# Docs: docs/operations/MULTI_REPO_CORPUS_OPERATOR.md
+# Clones live on orchestrator (operator). GitHub is the sync bus -- do not SCP from owning hosts.
+# Same git repo on many hosts is trained once (origin/main), not per-host dirty trees.
+# Missing required roots fail the build. Run scripts/ensure_multi_repo_corpus_clones.py first.
+
+val_fraction: 0.1
+max_file_bytes: 262144
+seed: 42
+
+include_extensions:
+  - .py
+  - .ps1
+  - .sh
+  - .bash
+  - .md
+  - .yml
+  - .yaml
+  - .toml
+  - .ts
+  - .tsx
+  - .js
+  - .jsx
+  - .mjs
+  - .cjs
+  - .css
+  - .scss
+  - .html
+  - .php
+  - .sql
+  - .rs
+  - .go
+  - .java
+  - .kt
+  - .cs
+  - .cpp
+  - .h
+  - .hpp
+  - .c
+  - .json
+  - .txt
+  - .Dockerfile
+  - .dockerignore
+  - .gitignore
+  - .env.example
+
+deny_dirname_substrings:
+  - .git
+  - node_modules
+  - .venv
+  - venv
+  - __pycache__
+  - dist
+  - build
+  - .next
+  - coverage
+  - .turbo
+  - .cache
+  - secrets
+  - wp-content/uploads
+  - .cursor
+  - agent-transcripts
+  - logs
+  - tmp
+  - .tox
+  - eggs
+  - .eggs
+
+deny_name_globs:
+  - .env
+  - .env.*
+  - "*.pem"
+  - "*.key"
+  - "*.p12"
+  - "*.pfx"
+  - "*.whl"
+  - "*.tar.gz"
+  - "*.zip"
+  - "*.png"
+  - "*.jpg"
+  - "*.jpeg"
+  - "*.gif"
+  - "*.webp"
+  - "*.ico"
+  - "*.pdf"
+  - "*.bin"
+  - "*.pt"
+  - "*.safetensors"
+  - "*.gguf"
+  - package-lock.json
+  - yarn.lock
+  - pnpm-lock.yaml
+  - Cargo.lock
+
+repos:
+  - id: alfa-ai
+    root: C:/Users/operator/alfa-ai
+    github: operator@example.com:example/alfa-ai.git
+    required: true
+  - id: alfa-train
+    root: C:/Users/operator/alfa-train
+    github: operator@example.com:example/alfa-train.git
+    required: true
+  - id: contracts-bot
+    root: C:/Users/operator/contracts-bot
+    github: operator@example.com:example/contracts-bot.git
+    required: true
+  - id: rankings-bot
+    root: C:/Users/operator/rankings-bot
+    github: operator@example.com:example/Rankings-Bot.git
+    required: true
+  - id: monitoring
+    root: C:/Users/operator/monitoring
+    github: operator@example.com:example/monitoring.git
+    required: true
+  - id: victron-ble2mqtt-integration
+    root: C:/Users/operator/victron-ble2mqtt-integration
+    github: operator@example.com:example/victron-ble2mqtt-integration.git
+    required: true
+  - id: market-pie5-bot
+    root: C:/Users/operator/market-pie5-bot
+    github: operator@example.com:example/market-pie5-bot.git
+    required: true
+  - id: atems
+    root: C:/Users/operator/atems
+    github: operator@example.com:example/ATEMS.git
+    required: true
+  - id: USPBF
+    root: C:/Users/operator/USPBF
+    github: operator@example.com:example/USPBF.git
+    required: true
+  - id: credit-check-bot
+    root: C:/Users/operator/credit-check-bot
+    github: operator@example.com:example/credit-check-bot.git
+    required: true
+  - id: rv-auto-finder
+    root: C:/Users/operator/rv-auto-finder
+    github: operator@example.com:example/auto-rv.git
+    required: true
+  - id: example-site-perch
+    root: C:/Users/operator/example-site-perch
+    github: operator@example.com:example/example-site-perch.git
+    required: true
+  - id: alfa-homelab
+    root: C:/Users/operator/alfa-homelab
+    github: operator@example.com:example/alfa-homelab.git
+    required: true

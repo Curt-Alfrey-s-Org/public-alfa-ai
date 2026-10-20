@@ -1,0 +1,47 @@
+# hub hub -- llama.cpp rerank sidecar (Phase E1).
+# Requires Qwen3-Reranker-0.6B GGUF on hub (no BGE fallback).
+# Seed: sudo bash scripts/seed-qwen3-reranker-gguf-hub.sh
+#
+# Usage (on hub):
+#   sudo bash deploy/cluster-members/hub/deploy-rag-sidecars.sh rerank
+#
+# LiteLLM: set RERANK_BASE_URL=http://hub in deploy/.env
+
+services:
+  alfa-ai-reranker:
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: never
+    container_name: alfa-ai-reranker
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    command:
+      - llama-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${RERANK_PORT:-8360}"
+      - --model
+      - "/models/${RERANK_MODEL_FILE:?RERANK_MODEL_FILE must be set}"
+      - --ctx-size
+      - "512"
+      - --n-gpu-layers
+      - "999"
+      - --reranking
+    environment:
+      - CUDA_VISIBLE_DEVICES=${RERANK_CUDA_DEVICE:-0}
+    volumes:
+      - ${RERANK_MODELS_DIR:-/mnt/HDDs/Alfa-AI/models/downloads/reranker}:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${RERANK_PORT:-8360}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s

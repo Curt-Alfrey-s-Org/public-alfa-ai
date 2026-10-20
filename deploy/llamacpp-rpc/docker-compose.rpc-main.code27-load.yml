@@ -1,0 +1,11 @@
+# llama.cpp Code27 coordinator -- single load pass (no Docker restart loop on crash).
+#
+# Pair with deploy-llamacpp-rpc-coordinator.ps1 -Profile Code27.
+# Prevents unless-stopped from re-running load_tensors hundreds of times when
+# sched_reserve fails; operator re-runs deploy after fixing shards.
+
+services:
+  llamacpp-server:
+    restart: "no"
+    healthcheck:
+      disable: true

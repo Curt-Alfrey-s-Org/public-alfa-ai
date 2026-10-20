@@ -1,0 +1,17 @@
+/* ALFa AI chat widget - self-contained styles.
+ * Import once per app: import '@alfa-ai/chat-widget/styles.css'
+ * These are plain CSS (no Tailwind) so they work regardless of consumer config. */
+
+/* Thinking indicator: canvas nebula (see QuantumOrbLoader.tsx) */
+.quantum-orb-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0;
+}
+
+.quantum-orb-loader__canvas {
+  display: block;
+  border-radius: 50%;
+  background: transparent;
+}

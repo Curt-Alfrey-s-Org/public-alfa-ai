@@ -1,0 +1,15 @@
+# Pin 27B pool coordinator to inference RTX 3050 only (dual-GPU host).
+# rpc-main.yml sets deploy.devices count:all; sequence merge APPENDS entries, so use !override
+# per https://docs.docker.com/reference/compose-file/merge/#replace-value
+# device_ids UUID from nvidia-smi -L on inference (3050).
+
+services:
+  llamacpp-server:
+    deploy:
+      resources:
+        reservations:
+          devices: !override
+            - driver: nvidia
+              device_ids:
+                - GPU-791ef00b-66b5-32ee-5487-4dcc02a37bcd
+              capabilities: [gpu]

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ALFa AI Control Panel</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="header">
+        <h1>ALFa AI Control Panel</h1>
+        <p>Manage runs, tasks, and generated artifacts.</p>
+      </header>
+
+      <section class="panel">
+        <h2>Create Run</h2>
+        <form id="create-run-form">
+          <textarea
+            id="goal-input"
+            rows="3"
+            placeholder="Describe what you want the assistant to build..."
+            required
+          ></textarea>
+          <button type="submit">Create Run</button>
+        </form>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Runs</h2>
+            <button id="refresh-runs">Refresh</button>
+          </div>
+          <ul id="runs-list" class="list"></ul>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Run Details</h2>
+            <button id="process-next">Process Next Task</button>
+          </div>
+          <div id="run-meta" class="meta">Select a run to inspect.</div>
+
+          <h3>Tasks</h3>
+          <ul id="tasks-list" class="list"></ul>
+
+          <h3>Artifacts</h3>
+          <ul id="artifacts-list" class="list"></ul>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Rankings-Bot Reuse Targets</h2>
+        <p class="meta">
+          See <code>docs/RANKINGS_BOT_REUSE_MAP.md</code> for the full backend module extraction plan.
+        </p>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

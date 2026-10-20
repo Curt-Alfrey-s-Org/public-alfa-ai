@@ -1,0 +1,37 @@
+# inference -- CPU Ollama embed sidecar (:11435). Moved off VM100 1660 Super so
+# that GPU is shard-only. See .cursor/plans/RAG_248_VM100_SHARD.md.
+#
+# Usage (on inference):
+#   bash deploy/cluster-members/inference-coordinator/deploy-rag-cpu.sh
+#
+# RETIRED 2026-07-18 (production RAG on rag). Rollback only — LiteLLM on hub: EMBED_BASE_URL=http://orchestrator
+
+services:
+  alfa-ai-embed-ollama:
+    image: ollama/ollama:0.35.1
+    container_name: alfa-ai-embed-ollama
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      # CPU only -- inference's two GPUs (3060/5060) stay reserved for the inference
+      # rpc-server shards. Official flag: https://github.com/ollama/ollama/blob/main/docs/faq.md
+      - OLLAMA_NUM_GPU=0
+      # Mandatory RAG is on the critical path for every retrieval-augmented
+      # request; the default 5m idle unload cost a measured ~48s cold reload
+      # on the next embed call on VM100. Never unload. Official docs:
+      # https://github.com/ollama/ollama/blob/main/docs/faq.md#how-can-i-keep-a-model-loaded-or-unload-it-immediately
+      - OLLAMA_KEEP_ALIVE=-1
+    volumes:
+      # Prefer local cache (deploy-rag-cpu.sh + ensure-rag-models-local-cache.sh).
+      # Hub NFS path is seed-only fallback for manual compose without the script.
+      - ${OLLAMA_EMBED_MODELS_DIR:-/mnt/cluster/models/ollama/embed-qwen3-4b}:/root/.ollama
+    ports:
+      - "11435:11434"
+    healthcheck:
+      # Official ollama/ollama image has no curl/wget -- use the ollama CLI
+      # itself (talks to the local server over its own API client).
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s

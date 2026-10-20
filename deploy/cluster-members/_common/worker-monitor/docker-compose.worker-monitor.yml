@@ -1,0 +1,33 @@
+# GPU stats sidecar for Admin Health. Petals is not started.
+# GPU: https://docs.docker.com/compose/how-tos/gpu-support/
+# nvidia-smi is injected by the NVIDIA Container Toolkit when a GPU is reserved.
+name: alfa-worker-monitor
+
+services:
+  worker-monitor:
+    image: python:3.12-slim
+    pull_policy: if_not_present
+    container_name: worker-monitor
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    command: ["python3", "/app/monitor.py"]
+    environment:
+      WORKER_NAME: ${WORKER_NAME:-worker}
+      WORKER_ROLE: ${WORKER_ROLE:-gpu-worker}
+      MONITOR_PORT: ${MONITOR_PORT:-31331}
+    volumes:
+      - ${MONITOR_SCRIPT_HOST}:/app/monitor.py:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:31331/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

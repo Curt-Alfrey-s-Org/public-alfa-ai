@@ -1,0 +1,49 @@
+# Standalone Qwen2.5-Coder-7B llama-server on gaming host (gaming-c :8470).
+# Isolated Compose project (not default directory name llamacpp-rpc) so
+# `compose down` cannot treat inference rpc-server as an orphan.
+# Official project name: https://docs.docker.com/reference/compose-file/version-and-name/
+# Hub GGUF via NFS mount at /mnt/cluster/llama-cpp/...
+
+name: alfa-7b-serve
+
+services:
+  llamacpp-7b-serve:
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: never
+    container_name: llamacpp-7b-serve
+    restart: unless-stopped
+    working_dir: /app
+    entrypoint: ["/bin/bash", "/scripts/run-llama-server-7b.sh"]
+    environment:
+      - MAIN_PORT=${MAIN_PORT:-8470}
+      - MODEL_FILE=${MODEL_FILE:-Qwen2.5-Coder-7B-Instruct-Q8_0.gguf}
+      - MODEL_ALIAS=${MODEL_ALIAS:-qwen2.5-coder-7b}
+      - CTX_SIZE=${CTX_SIZE:-8192}
+      - PARALLEL=${PARALLEL:-2}
+      # Empty LORA_GGUF must stay empty (eval -NoLora). Compose :- default would
+      # replace empty with v1 (https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/).
+      - LORA_GGUF=${LORA_GGUF-}
+      - LORA_SCALE=${LORA_SCALE:-1.0}
+      - LLAMA_7B_HUB_ROOT=/hub
+      - LLAMA_7B_MODELS_SUBDIR=${LLAMA_7B_MODELS_SUBDIR:-models/qwen25-coder-7b}
+      - LLAMA_7B_LORA_SUBDIR=${LLAMA_7B_LORA_SUBDIR:-lora/qwen25-coder-7b}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+    ports:
+      - "${MAIN_PORT:-8470}:${MAIN_PORT:-8470}"
+    volumes:
+      # One hub root mount: nested :ro submounts under /models break (overlay mkdir).
+      - ${LLAMA_7B_HUB_DIR:-/mnt/cluster/llama-cpp}:/hub:ro
+      - ./run-llama-server-7b.sh:/scripts/run-llama-server-7b.sh:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${MAIN_PORT:-8470}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s

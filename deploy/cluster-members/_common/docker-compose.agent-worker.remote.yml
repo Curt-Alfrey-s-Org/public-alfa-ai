@@ -1,0 +1,33 @@
+# Remote alfa-ai-worker (per-host agent fleet)
+# Copy env.agent-worker.example to .env.agent-worker on the target host.
+# Brain Postgres/Redis/LiteLLM on hub (LAN). See docs/MULTI_HOST_AGENT_FLEET.md.
+
+services:
+  alfa-ai-worker:
+    image: ${ALFA_AI_APP_IMAGE:-alfa-ai-app:local}
+    pull_policy: never
+    container_name: alfa-ai-worker-${ALFA_AI_WORKER_HOST:-remote}
+    runtime: runc
+    working_dir: /app
+    command: ["python", "-m", "src.runtime.agent_worker"]
+    volumes:
+      - alfa-ai-agent-workspace:/workspace
+    environment:
+      - ALFA_AI_PROVIDER=${ALFA_AI_PROVIDER:-litellm}
+      - ALFA_AI_AGENT_MODEL=${ALFA_AI_AGENT_MODEL:-frontier-code}
+      - ALFA_AI_WORKSPACE_ROOT=/workspace
+      - ALFA_AI_WORKER_HOST=${ALFA_AI_WORKER_HOST}
+      - ALFA_AI_WORKER_HEARTBEAT_TTL_SEC=${ALFA_AI_WORKER_HEARTBEAT_TTL_SEC:-120}
+      - LITELLM_BASE_URL=${LITELLM_BASE_URL:-http://hub}
+      - LITELLM_API_KEY=${LITELLM_API_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - ALFA_AI_AUDIT_ROOTS=${ALFA_AI_AUDIT_ROOTS}
+      - ALFA_AI_AGENT_WORKER_POLL_SEC=${ALFA_AI_AGENT_WORKER_POLL_SEC:-15}
+      - ALFA_AI_AGENT_WORKER_BETWEEN_TASK_SEC=${ALFA_AI_AGENT_WORKER_BETWEEN_TASK_SEC:-2}
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+
+volumes:
+  alfa-ai-agent-workspace:

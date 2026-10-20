@@ -1,0 +1,27 @@
+# Run on every push/PR so API + auth regressions are caught before deploy.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to commit SHAs per GitHub Actions security hardening guide
+      # (mutable tags are a supply-chain risk).
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          # Matches deploy/Dockerfile.api base (3.12 is security-only upstream).
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Pytest
+        run: pytest tests/ -q --tb=short

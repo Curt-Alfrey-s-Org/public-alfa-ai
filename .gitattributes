@@ -1,0 +1,2 @@
+# Shell entrypoints run inside Linux containers — CRLF breaks shebang (bash\r).
+*.sh text eol=lf

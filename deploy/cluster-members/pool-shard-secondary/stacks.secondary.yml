@@ -1,0 +1,9 @@
+# Stack symlinks for Dockge visibility on gpu-248 (inference GTX 1070 shard).
+# Do not start llamacpp-rpc from Dockge while the coordinator is connected.
+
+version: 1
+host: orchestrator
+
+stack_links:
+  - name: llamacpp-rpc
+    path: /home/operator/alfa-ai/deploy/llamacpp-rpc

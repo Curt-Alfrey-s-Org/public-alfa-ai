@@ -1,0 +1,241 @@
+# LiteLLM — 27B pool production overlay (inference mode)
+#
+# Activated when brain deploy/.env sets LITELLM_CONFIG=litellm_config.inference.yaml
+# (switch-pool-27b.sh). Omits dead speed/Petals tiers while 27B RPC pool is active.
+#
+# SSoT: docs/GREV27_27B_OPERATOR.md Phase 5
+
+model_list:
+  - model_name: "frontier-code"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      # Official default: background checks probe via chat completion, not backend /health.
+      # They race coordinator model load (503) and poison routing cooldowns.
+      # See https://docs.litellm.ai/docs/proxy/health
+      disable_background_health_check: true
+
+  - model_name: "frontier"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  - model_name: "qwen3.6-27b"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  # Draft coder (learning-loop L3) — standalone 7B on gaming-c when LLAMACPP_7B_URL is set.
+  # Unset LLAMACPP_7B_URL -> falls back to inference stub (same as frontier-code).
+  # Not production default; do not set DEFAULT_MODEL to this alias.
+  # Docs: docs/operations/ALFA_7B_SERVE_ALONGSIDE_27B.md
+  - model_name: "alfa-coder-draft"
+    litellm_params:
+      model: "openai/qwen2.5-coder-7b"
+      api_base: "os.environ/LLAMACPP_7B_URL"
+      api_key: "change-me"
+      timeout: 600
+      stream_timeout: 120
+      request_timeout: 600
+    model_info:
+      supports_reasoning: false
+      disable_background_health_check: true
+      description: "Home 7B QLoRA on gaming-c:8470 when LLAMACPP_7B_URL set"
+
+  # -- Universal alias coverage (see docs/POOL_SWITCH_OPERATOR.md) -------------
+  # Same generic aliases client repos (rankings-bot, market-pie5-bot, etc.) call
+  # in pool35 mode, routed to the live 27B model here so no client integration
+  # sees "Invalid model name" just because inference is the active pool.
+  - model_name: "fast"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "inline"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "autocomplete"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "chat"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  - model_name: "public-chat"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "app-chat"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  - model_name: "agent"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "code"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 1200
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "operator_internal"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      request_timeout: 600
+    model_info:
+      disable_background_health_check: true
+
+  - model_name: "qwen3.6:35b-a3b"
+    litellm_params:
+      model: "openai/qwen3.6-27b"
+      api_base: "os.environ/LLAMACPP_CODE27_URL"
+      api_key: "change-me"
+      timeout: 1200
+      stream_timeout: 120
+      request_timeout: 1200
+    model_info:
+      supports_reasoning: true
+      disable_background_health_check: true
+
+  - model_name: "embed"
+    litellm_params:
+      model: "ollama/qwen3-embedding:4b"
+      api_base: "os.environ/EMBED_BASE_URL"
+      request_timeout: 1200
+
+  - model_name: "qwen3-embedding:4b"
+    litellm_params:
+      model: "ollama/qwen3-embedding:4b"
+      api_base: "os.environ/EMBED_BASE_URL"
+      request_timeout: 1200
+
+  - model_name: "rerank"
+    litellm_params:
+      model: "openai/qwen3-reranker-0.6b"
+      api_base: "os.environ/RERANK_BASE_URL"
+      api_key: "change-me"
+      request_timeout: 60
+
+general_settings:
+  master_key: "os.environ/LITELLM_MASTER_KEY"
+  # Official default is false; inference uses orchestrator keep-warm + post-start verify instead.
+  # background_health_checks probe chat completions during coordinator cold load (503).
+  background_health_checks: false
+  health_check_interval: 60
+  enable_health_check_routing: true
+  health_check_ignore_transient_errors: true
+  health_check_skip_disabled_background_models: true
+
+litellm_settings:
+  drop_params: false
+  set_verbose: false
+  request_timeout: 600
+  num_retries: 1
+  cache: true
+  cache_params:
+    type: redis
+    host: os.environ/REDIS_HOST
+    port: os.environ/REDIS_PORT
+    password: os.environ/REDIS_PASSWORD
+    ttl: 3600
+    supported_call_types:
+      - acompletion
+      - aembedding
+
+router_settings:
+  timeout: 900
+  # Redact internal model_group/fallback alias names from client-visible error
+  # bodies (public-surface-security.mdc). Requires LiteLLM >= v1.90.
+  # See https://docs.litellm.ai/release_notes/v1.90.0/v1-90-0
+  expose_router_debug_in_errors: false
+  routing_strategy: "latency-based-routing"
+  cooldown_time: 120
+  allowed_fails: 1
+  allowed_fails_policy:
+    TimeoutErrorAllowedFails: 3
+    RateLimitErrorAllowedFails: 2
+    InternalServerErrorAllowedFails: 2
+  retry_policy:
+    RateLimitErrorRetries: 0
+  fallbacks:
+    - frontier-code: []
+    - frontier: []
+    - qwen3.6-27b: []
+    - fast: []
+    - inline: []
+    - autocomplete: []
+    - chat: []
+    - public-chat: []
+    - app-chat: []
+    - agent: []
+    - code: []
+    - operator_internal: []
+    - qwen3.6:35b-a3b: []
+    # 7B down or LLAMACPP_7B_URL unset: fail over to inference (not for draft+judge dual-check)
+    - alfa-coder-draft: ["frontier-code"]

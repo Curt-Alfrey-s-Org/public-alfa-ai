@@ -1,0 +1,44 @@
+# Pull-through Docker Registry mirror on hub (hub).
+#
+# Every Linux/WSL node in the cluster points its Docker daemon at this mirror via
+#   /etc/docker/daemon.json { "registry-mirrors": ["http://hub"] }
+# so `docker pull postgres:16` / `redis:7.4-alpine` / `nginx:1.29.8-alpine` / CUDA base
+# images are fetched once from Docker Hub and then served from the LAN.
+#
+# Docs:
+#   https://distribution.github.io/distribution/
+#   https://docs.docker.com/docker-hub/image-library/mirror/
+#
+# Storage lives on the HDDs pool under the cluster dataset so it is backed up with
+# the rest of /mnt/HDDs/alfa-ai-cluster (models, docker-images, installers).
+
+name: alfa-registry
+
+services:
+  registry:
+    image: registry:2.8
+    container_name: alfa-registry
+    restart: unless-stopped
+    # Pull-through registry has no GPU need. hub brain images may set
+    # "default-runtime": "nvidia" in /etc/docker/daemon.json; if nvidia-container-toolkit
+    # is not installed, Docker rejects every container with "unknown or invalid runtime name: nvidia".
+    # Pin runc here so this service always starts.
+    runtime: runc
+    environment:
+      REGISTRY_PROXY_REMOTEURL: "https://registry-1.docker.io"
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
+      REGISTRY_HTTP_ADDR: "0.0.0.0:5000"
+      REGISTRY_LOG_LEVEL: info
+    volumes:
+      # Canonical hub path (see docs/CLUSTER_SHARED_STORAGE.md). Create with:
+      #   sudo mkdir -p /mnt/HDDs/Alfa-AI/docker/registry
+      # If you still have data under /mnt/HDDs/alfa-ai-cluster/registry, rsync it here once.
+      - /mnt/HDDs/Alfa-AI/docker/registry:/var/lib/registry
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/v2/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s

@@ -1,0 +1,15 @@
+.git
+.cursor
+.venv
+venv
+node_modules
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.env
+.env.*
+deploy/.env
+deploy/.env.*

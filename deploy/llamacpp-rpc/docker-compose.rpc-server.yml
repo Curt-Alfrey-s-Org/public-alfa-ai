@@ -1,0 +1,58 @@
+# llama.cpp rpc-server — backend shard node.
+#
+# SECURITY: rpc-server binds 0.0.0.0 — upstream warns PoC/insecure; firewall MUST
+# restrict RPC_PORT to LAN only. See docs/LLAMACPP_RPC_OPERATOR.md § "Security and networking".
+# Deploy on each backend shard host. The coordinator on gaming-b (see
+# docker-compose.rpc-main.yml) dials each --rpc endpoint.
+#
+# Ports — docs/PORT_ASSIGNMENTS.md:
+#   orchestrator GPU0 -> 31350; orchestrator GPU1 -> 31355 (use docker-compose.rpc-server.dual-gpu-93.yml)
+#   hub     -> 31353
+#   gaming-c      -> 31351
+#   gaming-a     -> 31352
+#
+# Cluster wrappers: deploy/cluster-members/*/deploy-llamacpp-rpc.ps1 (Win11),
+# hub-111/deploy-llamacpp-rpc-shard.sh (hub).
+# Set RPC_PORT in .env.rpc on each host, or override via compose CLI.
+#
+# Usage (on each backend):
+#   cd deploy/llamacpp-rpc
+#   Create deploy/llamacpp-rpc/.env.rpc on this host (gitignored) before compose up.
+#   docker compose --env-file .env.rpc -f docker-compose.rpc-server.yml up -d
+#
+# Sanity check from the coordinator:
+#   nc -zv orchestrator  31350
+#   nc -zv orchestrator  31351
+#   nc -zv orchestrator 31352
+
+services:
+  llamacpp-rpc-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.rpc-cuda128
+    image: alfa-llamacpp-rpc:cuda128
+    pull_policy: build
+    container_name: llamacpp-rpc-server
+    working_dir: /app
+    # Pin b7186 rpc-server CLI (tools/rpc/rpc-server.cpp): --host and --port each take the *next* argv.
+    command:
+      - rpc-server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${RPC_PORT:-31350}"
+    environment:
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      # Mitigate RPC CUDA graph warmup loop (#20315); official env in ggml-cuda/common.cuh.
+      - GGML_CUDA_DISABLE_GRAPHS=1
+    # network_mode: host so the --port binding is directly visible to the
+    # coordinator on the LAN. Matches the Petals worker pattern.
+    network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: "no"  # rpc-server crash must fail the readiness gate (no false-green auto-reopen)

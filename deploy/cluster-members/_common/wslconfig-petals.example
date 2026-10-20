@@ -1,0 +1,19 @@
+# Copy to C:\Users\<repo-owner>\.wslconfig (NOT the admin installer's profile).
+# Win11+ Petals / inference workers (orchestrator, gaming-c, gaming-b gaming-worker-b). After edit: wsl --shutdown
+#
+# Canonical doc: docs/WINDOWS_WSL_DOCKER_ENGINE.md
+# Rollout checklist: docs/WINDOWS_WSL_ROLLOUT_CHECKLIST.md
+
+[wsl2]
+networkingMode=mirrored
+swap=0
+dnsTunneling=true
+firewall=true
+autoProxy=true
+vmIdleTimeout=-1
+
+[experimental]
+hostAddressLoopback=true
+
+[general]
+instanceIdleTimeout=-1
